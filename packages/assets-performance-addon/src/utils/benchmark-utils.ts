@@ -211,6 +211,7 @@ export function buildNormalizedComparisonSeries({
   benchmarkSymbol?: string;
   assetSeriesMap: Map<string, { symbol: string; series: ReturnData[] }>;
 }): NormalizedChartPoint[] {
+  void benchmarkSymbol;
   // 1. Filter each series by timeframe / dateRange and convert to Wealth Index
   const filteredPortfolio = portfolioSeries
     ? toWealthIndex(filterSeriesByDateRange(portfolioSeries, timeframe))

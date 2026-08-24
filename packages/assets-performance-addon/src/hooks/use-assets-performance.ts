@@ -16,7 +16,7 @@ import type {
   ComparisonTimeframe,
   DateRange,
 } from '../types';
-import { computeHoldingPerformance } from '../utils/irr-twr-utils';
+import { computeAssetPeriodPerformance } from '../utils/irr-twr-utils';
 import { buildCorrelationMatrix, filterSeriesByDateRange } from '../utils/correlation-utils';
 import { calculateAssetRiskMetrics } from '../utils/benchmark-utils';
 
@@ -477,23 +477,27 @@ export function useAssetsPerformance({
       // Effective open date
       const effectiveOpenDate = agg.openDate || earliestActivityDate;
 
-      // Returns calculations
+      const quotesSeries =
+        assetSeriesMap.get(agg.symbol) ??
+        (agg.assetId ? assetSeriesMap.get(agg.assetId) : undefined) ??
+        [];
+
+      // Performance calculations respecting the active dateRange
       const totalReturnPercent =
         agg.returnBasisBase > 0 ? agg.totalReturnBase / agg.returnBasisBase : null;
       const totalGainPercent = agg.costBasisBase > 0 ? agg.totalGainBase / agg.costBasisBase : null;
       const unrealizedPnlPercent =
         agg.costBasisBase > 0 ? agg.unrealizedGainBase / agg.costBasisBase : null;
 
-      const perf = computeHoldingPerformance({
-        totalReturnPct: totalReturnPercent ?? totalGainPercent,
+      const { perf, periodGain, periodGainPercent } = computeAssetPeriodPerformance({
+        quotesSeries,
+        activities: matchingActivities,
+        currentMarketValue: agg.marketValueBase,
+        currentCostBasis: agg.costBasisBase,
+        allTimeTotalReturnPct: totalReturnPercent ?? totalGainPercent,
         openDate: effectiveOpenDate,
-        cashFlows: cashFlows.length >= 2 ? cashFlows : undefined,
+        dateRange,
       });
-
-      const quotesSeries =
-        assetSeriesMap.get(agg.symbol) ??
-        (agg.assetId ? assetSeriesMap.get(agg.assetId) : undefined) ??
-        [];
 
       // Filter series for risk metrics according to dateRange or holding open date
       const openDateIso = effectiveOpenDate
@@ -531,13 +535,13 @@ export function useAssetsPerformance({
         marketValueLocal: agg.marketValueLocal,
         costBasis: agg.costBasisBase,
         costBasisLocal: agg.costBasisLocal,
-        unrealizedPnl: agg.unrealizedGainBase,
-        unrealizedPnlPercent,
+        unrealizedPnl: dateRange ? periodGain : agg.unrealizedGainBase,
+        unrealizedPnlPercent: dateRange ? periodGainPercent : unrealizedPnlPercent,
         realizedPnl: agg.realizedGainBase,
-        totalGain: agg.totalGainBase,
-        totalGainPercent,
-        totalReturn: agg.totalReturnBase,
-        totalReturnPercent,
+        totalGain: dateRange ? periodGain : agg.totalGainBase,
+        totalGainPercent: dateRange ? periodGainPercent : totalGainPercent,
+        totalReturn: dateRange ? periodGain : agg.totalReturnBase,
+        totalReturnPercent: dateRange ? periodGainPercent : totalReturnPercent,
         weight,
         openDate: effectiveOpenDate,
         cashFlows,

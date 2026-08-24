@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { computeAnnualizedReturn, computeXirr, computeHoldingPerformance } from './irr-twr-utils';
+import {
+  computeAnnualizedReturn,
+  computeXirr,
+  computeHoldingPerformance,
+  computeAssetPeriodPerformance,
+} from './irr-twr-utils';
 
 describe('irr-twr-utils', () => {
   describe('computeAnnualizedReturn', () => {
@@ -89,6 +94,32 @@ describe('irr-twr-utils', () => {
       expect(res.isAnnualized).toBe(true);
       expect(res.displayTwr).toBeCloseTo(0.1, 2);
       expect(res.twrLabelKey).toBe('annualized_twr');
+    });
+  });
+
+  describe('computeAssetPeriodPerformance', () => {
+    it('computes period-scoped TWR and PnL when dateRange is provided', () => {
+      const quotesSeries = [
+        { date: '2024-01-01', value: 100 },
+        { date: '2024-03-01', value: 110 },
+        { date: '2024-06-01', value: 130 },
+      ];
+
+      const res = computeAssetPeriodPerformance({
+        quotesSeries,
+        activities: [],
+        currentMarketValue: 1300,
+        currentCostBasis: 1000,
+        allTimeTotalReturnPct: 0.3,
+        dateRange: {
+          from: new Date('2024-03-01'),
+          to: new Date('2024-06-01'),
+        },
+      });
+
+      // Period change from 110 to 130 -> +18.18%
+      expect(res.perf.displayTwr).toBeCloseTo(0.1818, 2);
+      expect(res.periodGain).toBeGreaterThan(0);
     });
   });
 });

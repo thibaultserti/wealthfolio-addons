@@ -1,4 +1,6 @@
-import type { DatedCashFlow, PerformanceMetrics } from '../types';
+import type { ActivityDetails, ReturnData } from '@wealthfolio/addon-sdk';
+import type { DatedCashFlow, PerformanceMetrics, DateRange } from '../types';
+import { filterSeriesByDateRange } from './correlation-utils';
 
 /**
  * Computes the annualized return from a percentage return and a duration/openDate.
@@ -58,42 +60,46 @@ export function computeXirr(cashFlows: DatedCashFlow[]): number | null {
   const originTime = validFlows[0].timestamp;
   const lastTime = validFlows[validFlows.length - 1].timestamp;
   const totalDays = (lastTime - originTime) / (1000 * 60 * 60 * 24);
+
+  // If period is under 2 days, IRR cannot be meaningfully computed
   if (totalDays < 2) return null;
 
-  const npv = (rate: number): number | null => {
-    if (rate <= -0.999999999) return null;
-    const base = 1 + rate;
-    let total = 0;
-    for (const flow of validFlows) {
-      const years = (flow.timestamp - originTime) / (1000 * 60 * 60 * 24 * 365.25);
-      total += flow.amount / Math.pow(base, years);
+  // Net Present Value function at annual rate `r`
+  const npv = (rate: number): number => {
+    let sum = 0;
+    for (const cf of validFlows) {
+      const fractionOfYear = (cf.timestamp - originTime) / (1000 * 60 * 60 * 24 * 365.25);
+      const discount = Math.pow(1 + rate, fractionOfYear);
+      if (!Number.isFinite(discount) || discount === 0) return NaN;
+      sum += cf.amount / discount;
     }
-    return Number.isFinite(total) ? total : null;
+    return sum;
   };
 
-  let low = -0.999999;
-  let high = 10.0;
+  // Bisection method bounds
+  let low = -0.9999;
+  let high = 50.0; // up to 5000% annual return
   let npvLow = npv(low);
-  if (npvLow == null) return null;
-  let npvHigh = npv(high);
+  const npvHigh = npv(high);
 
-  let expanded = 0;
-  while (npvHigh != null && Math.sign(npvLow) === Math.sign(npvHigh) && expanded < 16) {
-    high *= 2;
-    npvHigh = npv(high);
-    expanded++;
+  if (!Number.isFinite(npvLow) || !Number.isFinite(npvHigh)) return null;
+
+  // If no root in standard interval, expand search upward
+  if (Math.sign(npvLow) === Math.sign(npvHigh)) {
+    high = 200.0;
+    if (Math.sign(npvLow) === Math.sign(npv(high))) {
+      return null;
+    }
   }
 
-  if (npvHigh == null || Math.sign(npvLow) === Math.sign(npvHigh)) {
-    return null;
-  }
+  const maxIter = 100;
+  const tolerance = 1e-6;
 
-  for (let iter = 0; iter < 128; iter++) {
+  for (let i = 0; i < maxIter; i++) {
     const mid = (low + high) / 2;
     const npvMid = npv(mid);
-    if (npvMid == null) return null;
 
-    if (Math.abs(npvMid) < 1e-7 || Math.abs(high - low) < 1e-10) {
+    if (!Number.isFinite(npvMid) || Math.abs(npvMid) < tolerance || (high - low) / 2 < tolerance) {
       return mid;
     }
 
@@ -181,5 +187,155 @@ export function computeHoldingPerformance({
     irrLabelKey,
     daysHeld,
     isAnnualized,
+  };
+}
+
+function toIsoDateString(val: unknown): string {
+  if (!val) return '';
+  if (typeof val === 'string') return val.split('T')[0];
+  if (val instanceof Date) return val.toISOString().split('T')[0];
+  return String(val).split('T')[0];
+}
+
+/**
+ * Computes period-accurate performance metrics (TWR, IRR, PnL) taking into account the selected DateRange.
+ */
+export function computeAssetPeriodPerformance({
+  quotesSeries,
+  activities,
+  currentMarketValue,
+  currentCostBasis,
+  allTimeTotalReturnPct,
+  openDate,
+  dateRange,
+}: {
+  quotesSeries: ReturnData[];
+  activities: ActivityDetails[];
+  currentMarketValue: number;
+  currentCostBasis: number;
+  allTimeTotalReturnPct: number | null;
+  openDate?: string | Date | null;
+  dateRange?: DateRange;
+}): {
+  perf: PerformanceMetrics;
+  periodGain: number;
+  periodGainPercent: number | null;
+} {
+  const now = new Date();
+  const startDate = dateRange?.from
+    ? new Date(dateRange.from)
+    : openDate
+      ? new Date(openDate)
+      : null;
+  const endDate = dateRange?.to ? new Date(dateRange.to) : now;
+
+  const startIso = startDate ? toIsoDateString(startDate) : null;
+  const endIso = endDate ? toIsoDateString(endDate) : null;
+
+  // Filter quote series for the timeframe
+  const periodQuotes = filterSeriesByDateRange(quotesSeries, dateRange);
+
+  let periodTwrPct: number | null = null;
+  if (periodQuotes.length >= 2) {
+    const firstVal = periodQuotes[0].value;
+    const lastVal = periodQuotes[periodQuotes.length - 1].value;
+    if (firstVal > 0 && lastVal > 0) {
+      periodTwrPct = (lastVal - firstVal) / firstVal;
+    }
+  } else if (!dateRange) {
+    periodTwrPct = allTimeTotalReturnPct;
+  }
+
+  // Construct cash flows strictly inside the chosen period
+  const cashFlows: DatedCashFlow[] = [];
+
+  // Determine initial position value at startDate
+  if (startIso && periodQuotes.length > 0) {
+    const startPrice = periodQuotes[0].value;
+    let qtyAtStart = 0;
+    for (const act of activities) {
+      const actDateIso = toIsoDateString(act.date);
+      if (actDateIso && actDateIso < startIso) {
+        const actType = String(act.activityType).toUpperCase();
+        if (actType === 'BUY' || actType === 'TRANSFER_IN') {
+          qtyAtStart += Number(act.quantity ?? 0);
+        } else if (actType === 'SELL' || actType === 'TRANSFER_OUT') {
+          qtyAtStart -= Number(act.quantity ?? 0);
+        }
+      }
+    }
+
+    if (qtyAtStart > 0 && startPrice > 0) {
+      cashFlows.push({
+        date: startDate!,
+        amount: -(qtyAtStart * startPrice),
+      });
+    }
+  }
+
+  // Intermediate activities in this period
+  for (const act of activities) {
+    const actDateIso = toIsoDateString(act.date);
+    if (startIso && actDateIso < startIso) continue;
+    if (endIso && actDateIso > endIso) continue;
+
+    const actType = String(act.activityType).toUpperCase();
+    if (actType === 'BUY' || actType === 'TRANSFER_IN') {
+      const cost =
+        Number(act.amount ?? 0) > 0
+          ? Number(act.amount)
+          : Number(act.unitPrice ?? 0) * Number(act.quantity ?? 0) + Number(act.fee ?? 0);
+      if (cost > 0) cashFlows.push({ date: act.date, amount: -cost });
+    } else if (actType === 'SELL' || actType === 'TRANSFER_OUT') {
+      const proceeds =
+        Number(act.amount ?? 0) > 0
+          ? Number(act.amount)
+          : Number(act.unitPrice ?? 0) * Number(act.quantity ?? 0) - Number(act.fee ?? 0);
+      if (proceeds > 0) cashFlows.push({ date: act.date, amount: proceeds });
+    } else if (actType === 'DIVIDEND' || actType === 'INTEREST') {
+      const inc = Number(act.amount ?? 0);
+      if (inc > 0) cashFlows.push({ date: act.date, amount: inc });
+    }
+  }
+
+  // Fallback if no initial position and no activities
+  if (cashFlows.length === 0 && currentCostBasis > 0) {
+    cashFlows.push({
+      date: startDate || openDate || new Date(now.getTime() - 365 * 24 * 3600 * 1000),
+      amount: -currentCostBasis,
+    });
+  }
+
+  // Terminal cash flow at end of period
+  if (currentMarketValue > 0) {
+    cashFlows.push({
+      date: endDate,
+      amount: currentMarketValue,
+    });
+  }
+
+  const perf = computeHoldingPerformance({
+    totalReturnPct: periodTwrPct ?? allTimeTotalReturnPct,
+    openDate: startDate || openDate,
+    endDate,
+    cashFlows: cashFlows.length >= 2 ? cashFlows : undefined,
+  });
+
+  // Calculate period PnL
+  let periodGain = 0;
+  if (periodTwrPct != null && currentMarketValue > 0) {
+    periodGain = currentMarketValue * (periodTwrPct / (1 + periodTwrPct));
+  } else {
+    periodGain = currentMarketValue - currentCostBasis;
+  }
+
+  const periodGainPercent =
+    periodTwrPct ??
+    (currentCostBasis > 0 ? (currentMarketValue - currentCostBasis) / currentCostBasis : null);
+
+  return {
+    perf,
+    periodGain,
+    periodGainPercent,
   };
 }
