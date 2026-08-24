@@ -13,7 +13,11 @@ import type {
 export function toWealthIndex(series: ReturnData[]): Array<{ date: string; value: number }> {
   if (!series || series.length === 0) return [];
   const sorted = [...series]
-    .filter((p) => Number.isFinite(p.value))
+    .filter((p) => Number.isFinite(p.value) && Boolean(p.date))
+    .map((p) => ({
+      date: (typeof p.date === 'string' ? p.date : new Date(p.date).toISOString()).split('T')[0],
+      value: p.value,
+    }))
     .sort((a, b) => a.date.localeCompare(b.date));
   if (sorted.length === 0) return [];
 

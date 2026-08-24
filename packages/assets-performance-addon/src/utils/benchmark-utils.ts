@@ -5,6 +5,7 @@ import {
   computePearsonCorrelation,
   filterSeriesByDateRange,
   toWealthIndex,
+  alignSeriesWithForwardFill,
 } from './correlation-utils';
 
 export const BENCHMARK_PRESETS: BenchmarkPreset[] = [
@@ -62,11 +63,28 @@ export function calculateAssetRiskMetrics({
 }): AssetRiskMetrics {
   const assetWealth = toWealthIndex(assetSeries);
   const benchmarkWealth = benchmarkSeries ? toWealthIndex(benchmarkSeries) : [];
-  const portfolioWealth = portfolioSeries ? toWealthIndex(portfolioSeries) : [];
 
-  const assetDaily = computeDailyReturns(assetWealth);
-  const benchmarkDaily = benchmarkWealth.length > 0 ? computeDailyReturns(benchmarkWealth) : null;
-  const portfolioDaily = portfolioWealth.length > 0 ? computeDailyReturns(portfolioWealth) : null;
+  // Synchronize Asset, Benchmark, and Portfolio series onto the same continuous market calendar
+  const seriesToAlign = [
+    { id: 'asset', symbol: 'asset', series: assetSeries },
+    ...(benchmarkSeries && benchmarkSeries.length > 0
+      ? [{ id: 'benchmark', symbol: 'benchmark', series: benchmarkSeries }]
+      : []),
+    ...(portfolioSeries && portfolioSeries.length > 0
+      ? [{ id: 'portfolio', symbol: 'portfolio', series: portfolioSeries }]
+      : []),
+  ];
+
+  const alignedReturnsMap = alignSeriesWithForwardFill(seriesToAlign);
+  const assetDaily = alignedReturnsMap.get('asset') ?? computeDailyReturns(assetWealth);
+  const benchmarkDaily =
+    benchmarkSeries && benchmarkSeries.length > 0
+      ? (alignedReturnsMap.get('benchmark') ?? null)
+      : null;
+  const portfolioDaily =
+    portfolioSeries && portfolioSeries.length > 0
+      ? (alignedReturnsMap.get('portfolio') ?? null)
+      : null;
 
   // 1. Annualized Volatility, CAGR and Sharpe Ratio
   const dailyValues = Array.from(assetDaily.values());
