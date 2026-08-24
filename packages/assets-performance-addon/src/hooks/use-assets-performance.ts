@@ -14,18 +14,16 @@ import type {
   DatedCashFlow,
   CorrelationMatrixData,
   ComparisonTimeframe,
-  DateRange,
 } from '../types';
-import { computeAssetPeriodPerformance } from '../utils/irr-twr-utils';
-import { buildCorrelationMatrix, filterSeriesByDateRange } from '../utils/correlation-utils';
+import { computeHoldingPerformance } from '../utils/irr-twr-utils';
+import { buildCorrelationMatrix } from '../utils/correlation-utils';
 import { calculateAssetRiskMetrics } from '../utils/benchmark-utils';
 
 interface UseAssetsPerformanceOptions {
   api: HostAPI;
   scope: PortfolioScope;
   benchmarkSymbol: string;
-  dateRange?: DateRange;
-  correlationTimeframe?: DateRange | ComparisonTimeframe;
+  correlationTimeframe?: ComparisonTimeframe;
 }
 
 export interface AssetsPerformanceData {
@@ -43,8 +41,7 @@ export function useAssetsPerformance({
   api,
   scope,
   benchmarkSymbol,
-  dateRange,
-  correlationTimeframe,
+  correlationTimeframe = '1Y',
 }: UseAssetsPerformanceOptions) {
   // Query 1: Settings & Base Currency
   const settingsQuery = useQuery({
@@ -504,43 +501,24 @@ export function useAssetsPerformance({
         (agg.assetId ? assetSeriesMap.get(agg.assetId) : undefined) ??
         [];
 
-      // Performance calculations respecting the active dateRange
+      // Performance calculations based on user's actual holding and purchase history
       const totalReturnPercent =
         agg.returnBasisBase > 0 ? agg.totalReturnBase / agg.returnBasisBase : null;
       const totalGainPercent = agg.costBasisBase > 0 ? agg.totalGainBase / agg.costBasisBase : null;
       const unrealizedPnlPercent =
         agg.costBasisBase > 0 ? agg.unrealizedGainBase / agg.costBasisBase : null;
 
-      const { perf, periodGain, periodGainPercent } = computeAssetPeriodPerformance({
-        quotesSeries,
-        activities: matchingActivities,
-        currentMarketValue: agg.marketValueBase,
-        currentCostBasis: agg.costBasisBase,
-        currentQuantity: agg.quantity,
-        allTimeTotalReturnPct: totalReturnPercent ?? totalGainPercent,
+      const perf = computeHoldingPerformance({
+        totalReturnPct: totalReturnPercent ?? totalGainPercent,
         openDate: effectiveOpenDate,
-        dateRange,
+        endDate: now,
+        cashFlows: cashFlows.length >= 2 ? cashFlows : undefined,
       });
 
-      // Filter series for risk metrics according to dateRange or holding open date
-      const openDateIso = effectiveOpenDate
-        ? (typeof effectiveOpenDate === 'string'
-            ? effectiveOpenDate
-            : effectiveOpenDate.toISOString()
-          ).split('T')[0]
-        : undefined;
-
-      const effectiveRange =
-        dateRange ?? (openDateIso ? { from: new Date(openDateIso), to: undefined } : undefined);
-
-      const filteredQuotes = filterSeriesByDateRange(quotesSeries, effectiveRange);
-      const filteredBenchmark = filterSeriesByDateRange(benchmarkSeries, effectiveRange);
-      const filteredPortfolio = filterSeriesByDateRange(portfolioSeries, effectiveRange);
-
       const riskMetrics = calculateAssetRiskMetrics({
-        assetSeries: filteredQuotes.length >= 2 ? filteredQuotes : quotesSeries,
-        benchmarkSeries: filteredBenchmark.length >= 2 ? filteredBenchmark : benchmarkSeries,
-        portfolioSeries: filteredPortfolio.length >= 2 ? filteredPortfolio : portfolioSeries,
+        assetSeries: quotesSeries,
+        benchmarkSeries,
+        portfolioSeries,
       });
 
       const weight = portfolioVal > 0 ? (agg.marketValueBase / portfolioVal) * 100 : 0;
@@ -558,13 +536,13 @@ export function useAssetsPerformance({
         marketValueLocal: agg.marketValueLocal,
         costBasis: agg.costBasisBase,
         costBasisLocal: agg.costBasisLocal,
-        unrealizedPnl: dateRange ? periodGain : agg.unrealizedGainBase,
-        unrealizedPnlPercent: dateRange ? periodGainPercent : unrealizedPnlPercent,
+        unrealizedPnl: agg.unrealizedGainBase,
+        unrealizedPnlPercent,
         realizedPnl: agg.realizedGainBase,
-        totalGain: dateRange ? periodGain : agg.totalGainBase,
-        totalGainPercent: dateRange ? periodGainPercent : totalGainPercent,
-        totalReturn: dateRange ? periodGain : agg.totalReturnBase,
-        totalReturnPercent: dateRange ? periodGainPercent : totalReturnPercent,
+        totalGain: agg.totalGainBase,
+        totalGainPercent,
+        totalReturn: agg.totalReturnBase,
+        totalReturnPercent,
         weight,
         openDate: effectiveOpenDate,
         cashFlows,
@@ -583,7 +561,7 @@ export function useAssetsPerformance({
         name: a.name,
         series: a.quotesSeries,
       })),
-      correlationTimeframe ?? dateRange ?? '1Y',
+      correlationTimeframe ?? '1Y',
     );
 
     return {
@@ -598,7 +576,6 @@ export function useAssetsPerformance({
     benchmarkSeries,
     portfolioSeries,
     baseCurrency,
-    dateRange,
     correlationTimeframe,
   ]);
 

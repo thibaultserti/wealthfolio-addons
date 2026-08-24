@@ -8,8 +8,6 @@ import {
   TabsContent,
   Card,
   CardContent,
-  DateRangeSelector,
-  type DateRange,
 } from '@wealthfolio/ui';
 import { TrendingUp, Grid, RefreshCw, LineChart } from 'lucide-react';
 import type { PortfolioScope, ComparisonTimeframe } from '../types';
@@ -25,7 +23,6 @@ interface AssetsPerformanceDashboardProps {
 
 export const AssetsPerformanceDashboard: React.FC<AssetsPerformanceDashboardProps> = ({ api }) => {
   const [scope, setScope] = useState<PortfolioScope>({ type: 'all', label: 'All Portfolios' });
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [correlationTimeframe, setCorrelationTimeframe] = useState<ComparisonTimeframe>('1Y');
   const [activeTab, setActiveTab] = useState<string>('overview');
 
@@ -33,7 +30,6 @@ export const AssetsPerformanceDashboard: React.FC<AssetsPerformanceDashboardProp
     api,
     scope,
     benchmarkSymbol: '^GSPC',
-    dateRange,
     correlationTimeframe,
   });
 
@@ -51,14 +47,12 @@ export const AssetsPerformanceDashboard: React.FC<AssetsPerformanceDashboardProp
             <h1 className="text-2xl font-bold tracking-tight">Assets Performance & Correlation</h1>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            Individual IRR & TWR calculations, multi-asset correlation matrices, and benchmark
-            comparisons
+            Individual IRR & TWR calculations since purchase and multi-asset correlation matrices
           </p>
         </div>
 
         {/* Global Controls */}
         <div className="flex flex-wrap items-center gap-2.5">
-          <DateRangeSelector value={dateRange} onChange={setDateRange} hiddenRanges={['1D']} />
           <PortfolioScopeFilter api={api} scope={scope} onScopeChange={setScope} />
           <Button
             variant="outline"
