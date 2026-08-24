@@ -23,13 +23,13 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "type-check": "pnpm -r run type-check",
-    "package": "pnpm -r run package",
-    "package:assets-perf": "pnpm --filter wealthfolio-assets-performance-addon package",
-    "package:dividends": "pnpm --filter wealthfolio-dividend-projection-addon package",
-    "package:metrics": "pnpm --filter wealthfolio-portfolio-metrics-addon package",
-    "package:performance": "pnpm --filter wealthfolio-monthly-performance-addon package",
+    "package": "pnpm -r run package && mkdir -p dist && cp packages/*/dist/*.zip dist/",
+    "package:assets-perf": "pnpm --filter wealthfolio-assets-performance-addon package && mkdir -p dist && cp packages/assets-performance-addon/dist/*.zip dist/",
+    "package:dividends": "pnpm --filter wealthfolio-dividend-projection-addon package && mkdir -p dist && cp packages/dividends-projection-addon/dist/*.zip dist/",
+    "package:metrics": "pnpm --filter wealthfolio-portfolio-metrics-addon package && mkdir -p dist && cp packages/portfolio-metrics-addon/dist/*.zip dist/",
+    "package:performance": "pnpm --filter wealthfolio-monthly-performance-addon package && mkdir -p dist && cp packages/monthly-performance-addon/dist/*.zip dist/",
     "pre-commit": "prek run --all-files",
-    "clean": "pnpm -r run clean"
+    "clean": "pnpm -r run clean && rm -rf dist"
   },
   "keywords": [
     "wealthfolio",

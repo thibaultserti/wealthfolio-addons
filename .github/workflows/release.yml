@@ -43,11 +43,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
-          files: |
-            packages/dividends-projection-addon/dist/dividends-projection-addon.zip
-            packages/portfolio-metrics-addon/dist/portfolio-metrics-addon.zip
-            packages/monthly-performance-addon/dist/monthly-performance-addon.zip
-            packages/assets-performance-addon/dist/assets-performance-addon.zip
+          files: dist/*.zip
           draft: false
           prerelease: false
           generate_release_notes: true

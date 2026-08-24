@@ -23,6 +23,7 @@
     "build": "vite build",
     "dev": "vite build --watch",
     "clean": "rm -rf dist",
+    "package": "pnpm build && zip -r dist/dividends-projection-addon.zip manifest.json dist/addon.js README.md",
     "lint": "eslint .",
     "format": "prettier --write .",
     "type-check": "tsc --noEmit",
