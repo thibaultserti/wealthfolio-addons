@@ -8,8 +8,8 @@ on:
   pull_request:
 
 jobs:
-  check-and-build:
-    name: TypeCheck, Test & Build Monorepo
+  lint:
+    name: Lint & Format Check
     runs-on: ubuntu-latest
 
     steps:
@@ -30,32 +30,66 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Type check (all packages)
-        run: pnpm run type-check
+      - name: Format check
+        run: pnpm run format:check
 
-      - name: Run unit tests (all packages)
-        run: pnpm test
+      - name: Lint check
+        run: pnpm run lint
 
-      - name: Package addons (.zip)
-        run: pnpm run package
+  build-and-test:
+    name: Test & Package (${{ matrix.addon.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        addon:
+          - name: dividends-projection-addon
+            package: wealthfolio-dividend-projection-addon
+            path: packages/dividends-projection-addon
+            zip: dividends-projection-addon.zip
+          - name: portfolio-metrics-addon
+            package: wealthfolio-portfolio-metrics-addon
+            path: packages/portfolio-metrics-addon
+            zip: portfolio-metrics-addon.zip
+          - name: monthly-performance-addon
+            package: wealthfolio-monthly-performance-addon
+            path: packages/monthly-performance-addon
+            zip: monthly-performance-addon.zip
+          - name: assets-performance-addon
+            package: wealthfolio-assets-performance-addon
+            path: packages/assets-performance-addon
+            zip: assets-performance-addon.zip
 
-      - name: Upload Dividends Projection Addon artifact
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type check
+        run: pnpm --filter ${{ matrix.addon.package }} run type-check
+
+      - name: Run unit tests
+        run: pnpm --filter ${{ matrix.addon.package }} run test
+
+      - name: Package addon (.zip)
+        run: pnpm --filter ${{ matrix.addon.package }} run package
+
+      - name: Upload addon artifact
         uses: actions/upload-artifact@v7
         with:
-          name: dividends-projection-addon
-          path: packages/dividends-projection-addon/dist/dividends-projection-addon.zip
-          retention-days: 7
-
-      - name: Upload Portfolio Metrics Addon artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: portfolio-metrics-addon
-          path: packages/portfolio-metrics-addon/dist/portfolio-metrics-addon.zip
-          retention-days: 7
-
-      - name: Upload Monthly Performance Addon artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: monthly-performance-addon
-          path: packages/monthly-performance-addon/dist/monthly-performance-addon.zip
+          name: ${{ matrix.addon.name }}
+          path: ${{ matrix.addon.path }}/dist/${{ matrix.addon.zip }}
           retention-days: 7

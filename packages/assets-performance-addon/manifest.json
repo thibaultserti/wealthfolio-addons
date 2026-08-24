@@ -1,0 +1,152 @@
+{
+  "id": "assets-performance",
+  "name": "Assets Performance",
+  "version": "1.0.0",
+  "description": "Analyze individual asset returns (IRR, TWR), multi-asset correlation matrix, and benchmark/portfolio comparison (Alpha, Beta)",
+  "author": "thibaultserti",
+  "main": "dist/addon.js",
+  "sdkVersion": "3.7.0",
+  "minWealthfolioVersion": "3.6.3",
+  "enabled": true,
+  "contributes": {
+    "routes": [
+      {
+        "id": "assets-performance"
+      }
+    ],
+    "links": {
+      "sidebar": [
+        {
+          "id": "assets-performance",
+          "route": "assets-performance",
+          "label": "Assets Performance",
+          "icon": "line-chart",
+          "order": 48
+        }
+      ]
+    }
+  },
+  "hostDependencies": {
+    "@tanstack/react-query": "^5.90.0",
+    "@wealthfolio/addon-sdk": "^3.7.0",
+    "@wealthfolio/ui": "^3.7.0",
+    "date-fns": "^4.1.0",
+    "lucide-react": "^0.561.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "recharts": "^3.7.0"
+  },
+  "permissions": [
+    {
+      "category": "performance",
+      "purpose": "Calculate cumulative time-weighted returns and benchmark comparison across assets and portfolios",
+      "functions": [
+        {
+          "name": "calculateHistory",
+          "isDeclared": true,
+          "isDetected": true
+        },
+        {
+          "name": "calculateSummary",
+          "isDeclared": true,
+          "isDetected": true
+        }
+      ]
+    },
+    {
+      "category": "portfolio",
+      "purpose": "Access holdings, cost basis, valuation and returns to compute asset-level IRR and TWR",
+      "functions": [
+        {
+          "name": "getHoldings",
+          "isDeclared": true,
+          "isDetected": true
+        },
+        {
+          "name": "getHolding",
+          "isDeclared": true,
+          "isDetected": true
+        },
+        {
+          "name": "getHistoricalValuations",
+          "isDeclared": true,
+          "isDetected": true
+        }
+      ]
+    },
+    {
+      "category": "activities",
+      "purpose": "Access buy, sell, and dividend transactions to calculate accurate Money-Weighted Returns (IRR / XIRR) per asset",
+      "functions": [
+        {
+          "name": "getAll",
+          "isDeclared": true,
+          "isDetected": true
+        },
+        {
+          "name": "search",
+          "isDeclared": true,
+          "isDetected": true
+        }
+      ]
+    },
+    {
+      "category": "accounts",
+      "purpose": "Filter and display asset performance by portfolio or specific account",
+      "functions": [
+        {
+          "name": "getAll",
+          "isDeclared": true,
+          "isDetected": true
+        }
+      ]
+    },
+    {
+      "category": "quotes",
+      "purpose": "Get historical price quotes to compute daily returns and Pearson correlation matrices between assets",
+      "functions": [
+        {
+          "name": "getHistory",
+          "isDeclared": true,
+          "isDetected": true
+        }
+      ]
+    },
+    {
+      "category": "market-data",
+      "purpose": "Search and fetch benchmark symbol price performance history for alpha and beta comparison",
+      "functions": [
+        {
+          "name": "searchTicker",
+          "isDeclared": true,
+          "isDetected": true
+        }
+      ]
+    },
+    {
+      "category": "settings",
+      "purpose": "Get user display preferences and base currency settings",
+      "functions": [
+        {
+          "name": "get",
+          "isDeclared": true,
+          "isDetected": true
+        }
+      ]
+    }
+  ],
+  "keywords": [
+    "wealthfolio",
+    "addon",
+    "performance",
+    "assets",
+    "irr",
+    "twr",
+    "correlation",
+    "matrix",
+    "benchmark",
+    "alpha",
+    "beta"
+  ],
+  "license": "MIT"
+}

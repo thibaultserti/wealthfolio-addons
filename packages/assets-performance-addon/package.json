@@ -1,0 +1,66 @@
+{
+  "name": "wealthfolio-assets-performance-addon",
+  "version": "1.0.0",
+  "description": "Asset-level performance analysis (IRR, TWR), multi-asset correlation matrix, and benchmark/portfolio comparison",
+  "type": "module",
+  "main": "dist/addon.js",
+  "keywords": [
+    "wealthfolio",
+    "addon",
+    "assets",
+    "performance",
+    "irr",
+    "twr",
+    "correlation",
+    "benchmark",
+    "alpha",
+    "beta"
+  ],
+  "license": "MIT",
+  "author": "thibaultserti",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thibaultserti/wealthfolio-addons.git",
+    "directory": "packages/assets-performance-addon"
+  },
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch",
+    "clean": "rm -rf dist",
+    "package": "pnpm build && zip -r dist/assets-performance-addon.zip manifest.json dist/addon.js dist/addon.css README.md",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "^5.90.0",
+    "@wealthfolio/addon-sdk": "^3.7.0",
+    "@wealthfolio/ui": "^3.7.0",
+    "date-fns": "^4.1.0",
+    "lucide-react": "^0.561.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "recharts": "^3.7.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.13",
+    "@tanstack/react-query": "^5.90.20",
+    "@types/node": "^20.0.0",
+    "@types/react": "^19.2.13",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.0.2",
+    "@wealthfolio/addon-dev-tools": "^3.6.2",
+    "@wealthfolio/addon-sdk": "^3.7.0",
+    "@wealthfolio/ui": "^3.7.0",
+    "date-fns": "^4.1.0",
+    "lucide-react": "^0.561.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "recharts": "^3.7.0",
+    "tailwindcss": "^4.1.13",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.5",
+    "vitest": "^3.2.4"
+  }
+}

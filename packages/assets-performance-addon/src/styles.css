@@ -1,0 +1,16 @@
+.text-gain,
+.text-success,
+.text-emerald-500 {
+  color: #22c55e !important;
+}
+
+.text-loss,
+.text-destructive,
+.text-rose-500 {
+  color: #ef4444 !important;
+}
+
+.perf-muted {
+  color: #6b7280 !important;
+  opacity: 0.5 !important;
+}
