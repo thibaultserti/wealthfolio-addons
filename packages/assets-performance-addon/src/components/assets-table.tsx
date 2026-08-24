@@ -240,6 +240,7 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
               <th
                 className="py-2.5 px-3 text-right cursor-pointer hover:text-foreground transition-colors"
                 onClick={() => handleSort('beta')}
+                title="Beta vs Benchmark: Sensitivity to market movements (>1 = more volatile than market, <1 = defensive)"
               >
                 <div className="flex items-center justify-end gap-1">
                   <span>Beta</span>
@@ -249,6 +250,7 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
               <th
                 className="py-2.5 px-3 text-right cursor-pointer hover:text-foreground transition-colors"
                 onClick={() => handleSort('volatility')}
+                title="Annualized Volatility: Standard deviation of daily returns annualized (stdDev * √252)"
               >
                 <div className="flex items-center justify-end gap-1">
                   <span>Vol. (Ann.)</span>
