@@ -22,6 +22,7 @@ import {
   DollarSign,
 } from 'lucide-react';
 import type { AssetPerformanceItem } from '../types';
+import { TickerLogo } from './ticker-logo';
 
 interface AssetDetailModalProps {
   asset: AssetPerformanceItem | null;
@@ -50,12 +51,13 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({
         <DialogHeader className="border-b pb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-primary/10 rounded-xl text-primary font-bold font-mono text-base">
-                {asset.symbol}
-              </div>
+              <TickerLogo symbol={asset.symbol} size="lg" />
               <div>
                 <DialogTitle className="text-lg font-bold flex items-center gap-2">
-                  {asset.name}
+                  <span>{asset.name}</span>
+                  <Badge variant="secondary" className="font-mono text-xs">
+                    {asset.symbol}
+                  </Badge>
                   {asset.assetClass && (
                     <Badge variant="outline" className="text-xs">
                       {asset.assetClass}
@@ -72,7 +74,8 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({
                 {formatAmount(asset.marketValue, baseCurrency)}
               </div>
               <div className="text-xs text-muted-foreground">
-                Qty: {asset.quantity} • Cost: {formatAmount(asset.costBasis, baseCurrency)}
+                Qty: {asset.quantity.toLocaleString()} • Price:{' '}
+                {formatAmount(asset.marketPrice, asset.currency)}
               </div>
             </div>
           </div>

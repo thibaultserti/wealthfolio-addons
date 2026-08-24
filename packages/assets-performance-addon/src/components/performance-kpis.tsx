@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, CardContent, formatAmount, formatPercent } from '@wealthfolio/ui';
 import { TrendingUp, TrendingDown, Target, PieChart } from 'lucide-react';
 import type { AssetPerformanceItem } from '../types';
+import { TickerLogo } from './ticker-logo';
 
 interface PerformanceKpisProps {
   assets: AssetPerformanceItem[];
@@ -120,9 +121,12 @@ export const PerformanceKpis: React.FC<PerformanceKpisProps> = ({
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Top Asset Performer
             </p>
-            <h3 className="text-lg font-bold tracking-tight mt-1 truncate max-w-[140px]">
-              {bestPerformer ? bestPerformer.symbol : 'N/A'}
-            </h3>
+            <div className="flex items-center gap-2 mt-1">
+              {bestPerformer && <TickerLogo symbol={bestPerformer.symbol} size="sm" />}
+              <h3 className="text-lg font-bold tracking-tight truncate max-w-[120px]">
+                {bestPerformer ? bestPerformer.symbol : 'N/A'}
+              </h3>
+            </div>
             <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">
               {bestPerformer &&
               (bestPerformer.perf.displayIrr ?? bestPerformer.perf.displayTwr) != null
@@ -145,9 +149,12 @@ export const PerformanceKpis: React.FC<PerformanceKpisProps> = ({
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Lowest Asset Performer
             </p>
-            <h3 className="text-lg font-bold tracking-tight mt-1 truncate max-w-[140px]">
-              {worstPerformer ? worstPerformer.symbol : 'N/A'}
-            </h3>
+            <div className="flex items-center gap-2 mt-1">
+              {worstPerformer && <TickerLogo symbol={worstPerformer.symbol} size="sm" />}
+              <h3 className="text-lg font-bold tracking-tight truncate max-w-[120px]">
+                {worstPerformer ? worstPerformer.symbol : 'N/A'}
+              </h3>
+            </div>
             <p className="text-xs text-rose-600 dark:text-rose-400 font-medium mt-0.5">
               {worstPerformer &&
               (worstPerformer.perf.displayIrr ?? worstPerformer.perf.displayTwr) != null

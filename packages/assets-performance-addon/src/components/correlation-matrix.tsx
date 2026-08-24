@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, Button, Badge } from '@wealthfolio/ui';
 import { Grid, AlertCircle, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import type { CorrelationMatrixData, ComparisonTimeframe } from '../types';
+import { TickerLogo } from './ticker-logo';
 
 interface CorrelationMatrixProps {
   correlationData: CorrelationMatrixData;
@@ -11,49 +12,47 @@ interface CorrelationMatrixProps {
 
 const TIMEFRAMES: ComparisonTimeframe[] = ['1M', '3M', '6M', 'YTD', '1Y', '3Y', 'ALL'];
 
-function getCorrelationColor(value: number): { background: string; text: string } {
-  if (value === 1) {
-    return { background: 'bg-primary/20', text: 'text-foreground font-bold' };
-  }
-
-  // Positive correlation: 0 to 1 -> shades of green/emerald or blue
-  if (value > 0.7) {
+/**
+ * Returns dynamic inline styles for precise heatmap coloring:
+ * - Positive: vibrant emerald / teal gradient
+ * - Negative: vibrant rose / red gradient
+ * - Zero / near zero: subtle neutral
+ */
+function getCorrelationStyle(value: number, isDiagonal = false): React.CSSProperties {
+  if (isDiagonal || value >= 0.999) {
     return {
-      background: 'bg-emerald-600/30 dark:bg-emerald-500/30',
-      text: 'text-emerald-900 dark:text-emerald-200 font-semibold',
-    };
-  }
-  if (value > 0.4) {
-    return {
-      background: 'bg-emerald-500/20 dark:bg-emerald-500/20',
-      text: 'text-emerald-800 dark:text-emerald-300 font-medium',
-    };
-  }
-  if (value > 0.1) {
-    return {
-      background: 'bg-emerald-500/10 dark:bg-emerald-500/10',
-      text: 'text-emerald-700 dark:text-emerald-400',
+      backgroundColor: 'rgba(59, 130, 246, 0.15)',
+      color: 'inherit',
+      fontWeight: 700,
     };
   }
 
-  // Neutral / near zero: -0.1 to 0.1
-  if (value >= -0.1) {
+  if (value > 0) {
+    // 0 to 1 -> emerald green gradient with opacity 0.12 to 0.85
+    const alpha = Math.max(0.12, Math.min(0.85, value * 0.85));
+    const isDark = value > 0.65;
     return {
-      background: 'bg-muted/40',
-      text: 'text-muted-foreground',
+      backgroundColor: `rgba(16, 185, 129, ${alpha})`,
+      color: isDark ? '#ffffff' : 'inherit',
+      fontWeight: value > 0.5 ? 600 : 500,
     };
   }
 
-  // Negative correlation: -1 to -0.1 -> shades of rose/red
-  if (value < -0.4) {
+  if (value < 0) {
+    // -1 to 0 -> rose / carmine red gradient with opacity 0.15 to 0.85
+    const absVal = Math.abs(value);
+    const alpha = Math.max(0.15, Math.min(0.85, absVal * 0.85));
+    const isDark = absVal > 0.65;
     return {
-      background: 'bg-rose-600/30 dark:bg-rose-500/30',
-      text: 'text-rose-900 dark:text-rose-200 font-semibold',
+      backgroundColor: `rgba(239, 68, 68, ${alpha})`,
+      color: isDark ? '#ffffff' : 'inherit',
+      fontWeight: absVal > 0.5 ? 600 : 500,
     };
   }
+
   return {
-    background: 'bg-rose-500/15 dark:bg-rose-500/15',
-    text: 'text-rose-700 dark:text-rose-300 font-medium',
+    backgroundColor: 'rgba(100, 116, 139, 0.08)',
+    color: 'inherit',
   };
 }
 
@@ -101,8 +100,8 @@ export const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({
               </CardTitle>
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Pearson correlation on daily returns (from -1.00 to +1.00). Low/negative correlations
-              enhance diversification.
+              Pearson correlation on daily returns (-1.00 to +1.00). Low/negative correlations
+              enhance portfolio diversification.
             </p>
           </div>
           <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-lg">
@@ -127,16 +126,19 @@ export const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({
             <table className="border-collapse text-xs">
               <thead>
                 <tr>
-                  <th className="p-2 border-b border-r bg-muted/20 text-left font-mono text-[11px] text-muted-foreground min-w-[70px]">
-                    Ticker
+                  <th className="p-2 border-b border-r bg-muted/20 text-left font-mono text-[11px] text-muted-foreground min-w-[90px]">
+                    Asset
                   </th>
                   {symbols.map((sym) => (
                     <th
                       key={sym}
-                      className="p-2 border-b text-center font-mono font-semibold text-[11px] text-foreground min-w-[64px]"
+                      className="p-2 border-b text-center font-mono font-semibold text-[11px] text-foreground min-w-[72px]"
                       title={names[sym] || sym}
                     >
-                      {sym}
+                      <div className="flex flex-col items-center gap-1">
+                        <TickerLogo symbol={sym} size="xs" />
+                        <span>{sym}</span>
+                      </div>
                     </th>
                   ))}
                 </tr>
@@ -148,11 +150,15 @@ export const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({
                       className="p-2 border-r font-mono font-semibold text-foreground bg-muted/20 whitespace-nowrap text-left"
                       title={names[symA] || symA}
                     >
-                      {symA}
+                      <div className="flex items-center gap-1.5">
+                        <TickerLogo symbol={symA} size="xs" />
+                        <span>{symA}</span>
+                      </div>
                     </td>
                     {symbols.map((symB, colIdx) => {
                       const corr = matrix[rowIdx]?.[colIdx] ?? 0;
-                      const { background, text } = getCorrelationColor(corr);
+                      const isDiagonal = rowIdx === colIdx;
+                      const style = getCorrelationStyle(corr, isDiagonal);
                       const isHovered =
                         hoveredCell &&
                         ((hoveredCell.symA === symA && hoveredCell.symB === symB) ||
@@ -161,8 +167,9 @@ export const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({
                       return (
                         <td
                           key={symB}
-                          className={`p-2 text-center font-mono transition-all cursor-pointer ${background} ${text} ${
-                            isHovered ? 'ring-2 ring-primary ring-inset' : ''
+                          style={style}
+                          className={`p-2.5 text-center font-mono transition-all cursor-pointer select-none rounded-xs ${
+                            isHovered ? 'ring-2 ring-primary ring-inset scale-105 z-10' : ''
                           }`}
                           onMouseEnter={() =>
                             setHoveredCell({
@@ -185,19 +192,39 @@ export const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({
             </table>
           </div>
 
+          {/* Color Scale Legend */}
+          <div className="mt-4 pt-3 border-t flex flex-wrap items-center justify-between gap-3 text-[11px] text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-rose-500">-1.0 (Inverse)</span>
+              <div
+                className="w-36 h-2.5 rounded-full"
+                style={{
+                  background:
+                    'linear-gradient(to right, rgba(239, 68, 68, 0.85), rgba(100, 116, 139, 0.15) 50%, rgba(16, 185, 129, 0.85))',
+                }}
+              />
+              <span className="font-semibold text-emerald-500">+1.0 (Correlated)</span>
+            </div>
+            <span className="text-xs">Hover a cell to inspect pair relationship</span>
+          </div>
+
           {/* Hovered Cell Detail Box */}
           {hoveredCell && (
-            <div className="mt-4 p-3 bg-muted/30 rounded-lg border border-border/60 flex items-center justify-between text-xs animate-in fade-in-50">
+            <div className="mt-3 p-3 bg-muted/30 rounded-lg border border-border/60 flex items-center justify-between text-xs animate-in fade-in-50">
               <div className="flex items-center gap-3">
-                <Badge variant="outline" className="font-mono">
-                  {hoveredCell.symA} vs {hoveredCell.symB}
-                </Badge>
-                <span className="text-muted-foreground">
-                  {hoveredCell.nameA} & {hoveredCell.nameB}
+                <div className="flex items-center gap-1.5">
+                  <TickerLogo symbol={hoveredCell.symA} size="xs" />
+                  <span className="font-mono font-bold">{hoveredCell.symA}</span>
+                  <span className="text-muted-foreground">vs</span>
+                  <TickerLogo symbol={hoveredCell.symB} size="xs" />
+                  <span className="font-mono font-bold">{hoveredCell.symB}</span>
+                </div>
+                <span className="text-muted-foreground hidden sm:inline">
+                  ({hoveredCell.nameA} & {hoveredCell.nameB})
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="font-semibold text-sm font-mono">
+                <span className="font-bold text-sm font-mono">
                   ρ = {hoveredCell.corr.toFixed(3)}
                 </span>
                 <span className="text-muted-foreground text-[11px]">
@@ -233,11 +260,16 @@ export const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({
                   className="py-2 flex items-center justify-between"
                 >
                   <div className="flex items-center gap-2 font-mono font-medium">
+                    <TickerLogo symbol={pair.assetASymbol} size="xs" />
                     <span>{pair.assetASymbol}</span>
                     <span className="text-muted-foreground">↔</span>
+                    <TickerLogo symbol={pair.assetBSymbol} size="xs" />
                     <span>{pair.assetBSymbol}</span>
                   </div>
-                  <Badge variant="secondary" className="font-mono text-xs">
+                  <Badge
+                    variant="secondary"
+                    className="font-mono text-xs bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                  >
                     +{(pair.correlation * 100).toFixed(1)}%
                   </Badge>
                 </div>
@@ -262,16 +294,18 @@ export const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({
                   className="py-2 flex items-center justify-between"
                 >
                   <div className="flex items-center gap-2 font-mono font-medium">
+                    <TickerLogo symbol={pair.assetASymbol} size="xs" />
                     <span>{pair.assetASymbol}</span>
                     <span className="text-muted-foreground">↔</span>
+                    <TickerLogo symbol={pair.assetBSymbol} size="xs" />
                     <span>{pair.assetBSymbol}</span>
                   </div>
                   <Badge
                     variant="outline"
                     className={`font-mono text-xs ${
                       pair.correlation < 0
-                        ? 'border-rose-500/40 text-rose-600 dark:text-rose-400'
-                        : ''
+                        ? 'border-rose-500/40 bg-rose-500/10 text-rose-600 dark:text-rose-400 font-bold'
+                        : 'bg-muted/40'
                     }`}
                   >
                     {pair.correlation >= 0 ? '+' : ''}

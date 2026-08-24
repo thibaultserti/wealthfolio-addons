@@ -13,6 +13,7 @@ import {
 } from '@wealthfolio/ui';
 import { Search, ArrowUpDown, Maximize2 } from 'lucide-react';
 import type { AssetPerformanceItem } from '../types';
+import { TickerLogo } from './ticker-logo';
 
 interface AssetsTableProps {
   assets: AssetPerformanceItem[];
@@ -286,20 +287,23 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
                       />
                     </td>
                     <td className="py-2.5 px-3">
-                      <div className="flex flex-col">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-semibold text-foreground font-mono">
-                            {asset.symbol}
+                      <div className="flex items-center gap-2.5">
+                        <TickerLogo symbol={asset.symbol} size="sm" />
+                        <div className="flex flex-col min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-foreground font-mono">
+                              {asset.symbol}
+                            </span>
+                            {asset.assetClass && (
+                              <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
+                                {asset.assetClass}
+                              </Badge>
+                            )}
+                          </div>
+                          <span className="text-[11px] text-muted-foreground truncate max-w-[150px]">
+                            {asset.name}
                           </span>
-                          {asset.assetClass && (
-                            <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
-                              {asset.assetClass}
-                            </Badge>
-                          )}
                         </div>
-                        <span className="text-[11px] text-muted-foreground truncate max-w-[150px]">
-                          {asset.name}
-                        </span>
                       </div>
                     </td>
                     <td className="py-2.5 px-3 text-right font-medium">
