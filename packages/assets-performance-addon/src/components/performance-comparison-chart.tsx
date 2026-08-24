@@ -12,7 +12,7 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, Button } from '@wealthfolio/ui';
 import { LineChart as LineChartIcon } from 'lucide-react';
-import type { AssetPerformanceItem, ComparisonTimeframe } from '../types';
+import type { AssetPerformanceItem, ComparisonTimeframe, DateRange } from '../types';
 import type { ReturnData } from '@wealthfolio/addon-sdk';
 import { buildNormalizedComparisonSeries } from '../utils/benchmark-utils';
 
@@ -22,7 +22,7 @@ interface PerformanceComparisonChartProps {
   portfolioSeries: ReturnData[];
   benchmarkSeries: ReturnData[];
   benchmarkSymbol: string;
-  timeframe: ComparisonTimeframe;
+  timeframe: DateRange | ComparisonTimeframe;
   onTimeframeChange: (tf: ComparisonTimeframe) => void;
 }
 

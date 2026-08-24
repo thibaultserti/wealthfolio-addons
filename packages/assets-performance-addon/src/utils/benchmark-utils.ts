@@ -1,9 +1,9 @@
 import type { ReturnData } from '@wealthfolio/addon-sdk';
-import type { AssetRiskMetrics, BenchmarkPreset, ComparisonTimeframe } from '../types';
+import type { AssetRiskMetrics, BenchmarkPreset, ComparisonTimeframe, DateRange } from '../types';
 import {
   computeDailyReturns,
   computePearsonCorrelation,
-  filterSeriesByTimeframe,
+  filterSeriesByDateRange,
 } from './correlation-utils';
 
 export const BENCHMARK_PRESETS: BenchmarkPreset[] = [
@@ -180,23 +180,23 @@ export function buildNormalizedComparisonSeries({
   benchmarkSymbol,
   assetSeriesMap,
 }: {
-  timeframe: ComparisonTimeframe;
+  timeframe?: DateRange | ComparisonTimeframe;
   portfolioSeries?: ReturnData[];
   benchmarkSeries?: ReturnData[];
   benchmarkSymbol?: string;
   assetSeriesMap: Map<string, { symbol: string; series: ReturnData[] }>;
 }): NormalizedChartPoint[] {
-  // 1. Filter each series by timeframe
+  // 1. Filter each series by timeframe / dateRange
   const filteredPortfolio = portfolioSeries
-    ? filterSeriesByTimeframe(portfolioSeries, timeframe)
+    ? filterSeriesByDateRange(portfolioSeries, timeframe)
     : [];
   const filteredBenchmark = benchmarkSeries
-    ? filterSeriesByTimeframe(benchmarkSeries, timeframe)
+    ? filterSeriesByDateRange(benchmarkSeries, timeframe)
     : [];
 
   const filteredAssets = new Map<string, { symbol: string; series: ReturnData[] }>();
   for (const [key, item] of assetSeriesMap) {
-    const fSeries = filterSeriesByTimeframe(item.series, timeframe);
+    const fSeries = filterSeriesByDateRange(item.series, timeframe);
     if (fSeries.length > 0) {
       filteredAssets.set(key, { symbol: item.symbol, series: fSeries });
     }

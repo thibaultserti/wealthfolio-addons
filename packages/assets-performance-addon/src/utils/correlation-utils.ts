@@ -1,5 +1,35 @@
 import type { ReturnData } from '@wealthfolio/addon-sdk';
-import type { CorrelationCell, CorrelationMatrixData, ComparisonTimeframe } from '../types';
+import type {
+  CorrelationCell,
+  CorrelationMatrixData,
+  ComparisonTimeframe,
+  DateRange,
+} from '../types';
+
+/**
+ * Filters a ReturnData series to match the selected DateRange or timeframe.
+ */
+export function filterSeriesByDateRange(
+  series: ReturnData[],
+  range?: DateRange | ComparisonTimeframe,
+): ReturnData[] {
+  if (!series || series.length === 0) return [];
+  if (!range) return series;
+
+  if (typeof range === 'string') {
+    return filterSeriesByTimeframe(series, range);
+  }
+
+  const { from, to } = range;
+  const fromIso = from ? from.toISOString().split('T')[0] : undefined;
+  const toIso = to ? to.toISOString().split('T')[0] : undefined;
+
+  return series.filter((pt) => {
+    if (fromIso && pt.date < fromIso) return false;
+    if (toIso && pt.date > toIso) return false;
+    return true;
+  });
+}
 
 /**
  * Filters a ReturnData series to match the selected timeframe.
@@ -124,11 +154,11 @@ export function computePearsonCorrelation(
  */
 export function buildCorrelationMatrix(
   assets: Array<{ id: string; symbol: string; name: string; series: ReturnData[] }>,
-  timeframe: ComparisonTimeframe = '1Y',
+  timeframe: DateRange | ComparisonTimeframe = '1Y',
 ): CorrelationMatrixData {
   const filteredAssets = assets.map((a) => ({
     ...a,
-    dailyReturns: computeDailyReturns(filterSeriesByTimeframe(a.series, timeframe)),
+    dailyReturns: computeDailyReturns(filterSeriesByDateRange(a.series, timeframe)),
   }));
 
   const symbols = filteredAssets.map((a) => a.symbol);

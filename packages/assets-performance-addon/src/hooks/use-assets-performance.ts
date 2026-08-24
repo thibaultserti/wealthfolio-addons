@@ -14,16 +14,18 @@ import type {
   DatedCashFlow,
   CorrelationMatrixData,
   ComparisonTimeframe,
+  DateRange,
 } from '../types';
 import { computeHoldingPerformance } from '../utils/irr-twr-utils';
-import { buildCorrelationMatrix } from '../utils/correlation-utils';
+import { buildCorrelationMatrix, filterSeriesByDateRange } from '../utils/correlation-utils';
 import { calculateAssetRiskMetrics } from '../utils/benchmark-utils';
 
 interface UseAssetsPerformanceOptions {
   api: HostAPI;
   scope: PortfolioScope;
   benchmarkSymbol: string;
-  correlationTimeframe: ComparisonTimeframe;
+  dateRange?: DateRange;
+  correlationTimeframe?: DateRange | ComparisonTimeframe;
 }
 
 export interface AssetsPerformanceData {
@@ -41,6 +43,7 @@ export function useAssetsPerformance({
   api,
   scope,
   benchmarkSymbol,
+  dateRange,
   correlationTimeframe,
 }: UseAssetsPerformanceOptions) {
   // Query 1: Settings & Base Currency
@@ -481,7 +484,7 @@ export function useAssetsPerformance({
         name: a.name,
         series: a.quotesSeries,
       })),
-      correlationTimeframe,
+      correlationTimeframe ?? dateRange ?? '1Y',
     );
 
     return {
@@ -496,6 +499,7 @@ export function useAssetsPerformance({
     benchmarkSeries,
     portfolioSeries,
     baseCurrency,
+    dateRange,
     correlationTimeframe,
   ]);
 

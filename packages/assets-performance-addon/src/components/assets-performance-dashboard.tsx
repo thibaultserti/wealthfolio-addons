@@ -8,8 +8,10 @@ import {
   TabsContent,
   Card,
   CardContent,
+  DateRangeSelector,
+  type DateRange,
 } from '@wealthfolio/ui';
-import { TrendingUp, Grid, BarChart2, RefreshCw, LineChart, Shield, Layers } from 'lucide-react';
+import { TrendingUp, Grid, RefreshCw, LineChart } from 'lucide-react';
 import type { PortfolioScope, ComparisonTimeframe, AssetPerformanceItem } from '../types';
 import { useAssetsPerformance } from '../hooks/use-assets-performance';
 import { PortfolioScopeFilter } from './portfolio-scope-filter';
@@ -26,6 +28,7 @@ interface AssetsPerformanceDashboardProps {
 
 export const AssetsPerformanceDashboard: React.FC<AssetsPerformanceDashboardProps> = ({ api }) => {
   const [scope, setScope] = useState<PortfolioScope>({ type: 'all', label: 'All Portfolios' });
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [benchmarkSymbol, setBenchmarkSymbol] = useState<string>('^GSPC');
   const [chartTimeframe, setChartTimeframe] = useState<ComparisonTimeframe>('1Y');
   const [correlationTimeframe, setCorrelationTimeframe] = useState<ComparisonTimeframe>('1Y');
@@ -37,6 +40,7 @@ export const AssetsPerformanceDashboard: React.FC<AssetsPerformanceDashboardProp
     api,
     scope,
     benchmarkSymbol,
+    dateRange,
     correlationTimeframe,
   });
 
@@ -45,8 +49,6 @@ export const AssetsPerformanceDashboard: React.FC<AssetsPerformanceDashboardProp
     correlationMatrix,
     portfolioSeries = [],
     benchmarkSeries = [],
-    portfolioName,
-    benchmarkName,
     baseCurrency,
     totalPortfolioValue,
   } = data || {};
@@ -85,8 +87,9 @@ export const AssetsPerformanceDashboard: React.FC<AssetsPerformanceDashboardProp
           </p>
         </div>
 
-        {/* Global Controls */}
+        {/* Global Controls matching Monthly Performance */}
         <div className="flex flex-wrap items-center gap-2.5">
+          <DateRangeSelector value={dateRange} onChange={setDateRange} hiddenRanges={['1D']} />
           <PortfolioScopeFilter api={api} scope={scope} onScopeChange={setScope} />
           <BenchmarkSelector
             selectedSymbol={benchmarkSymbol}
@@ -146,7 +149,7 @@ export const AssetsPerformanceDashboard: React.FC<AssetsPerformanceDashboardProp
                 portfolioSeries={portfolioSeries}
                 benchmarkSeries={benchmarkSeries}
                 benchmarkSymbol={benchmarkSymbol}
-                timeframe={chartTimeframe}
+                timeframe={dateRange ?? chartTimeframe}
                 onTimeframeChange={setChartTimeframe}
               />
 
