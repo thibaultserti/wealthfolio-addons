@@ -19,7 +19,6 @@ import { BenchmarkSelector } from './benchmark-selector';
 import { PerformanceKpis } from './performance-kpis';
 import { AssetsTable } from './assets-table';
 import { CorrelationMatrix } from './correlation-matrix';
-import { PerformanceComparisonChart } from './performance-comparison-chart';
 import { AssetDetailModal } from './asset-detail-modal';
 
 interface AssetsPerformanceDashboardProps {
@@ -30,10 +29,8 @@ export const AssetsPerformanceDashboard: React.FC<AssetsPerformanceDashboardProp
   const [scope, setScope] = useState<PortfolioScope>({ type: 'all', label: 'All Portfolios' });
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [benchmarkSymbol, setBenchmarkSymbol] = useState<string>('^GSPC');
-  const [chartTimeframe, setChartTimeframe] = useState<ComparisonTimeframe>('1Y');
   const [correlationTimeframe, setCorrelationTimeframe] = useState<ComparisonTimeframe>('1Y');
-  const [selectedAssetSymbols, setSelectedAssetSymbols] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState<string>('comparison');
+  const [activeTab, setActiveTab] = useState<string>('overview');
   const [inspectedAsset, setInspectedAsset] = useState<AssetPerformanceItem | null>(null);
 
   const { data, isLoading, isFetching, refetch, error } = useAssetsPerformance({
@@ -44,31 +41,7 @@ export const AssetsPerformanceDashboard: React.FC<AssetsPerformanceDashboardProp
     correlationTimeframe,
   });
 
-  const {
-    assets = [],
-    correlationMatrix,
-    portfolioSeries = [],
-    benchmarkSeries = [],
-    baseCurrency,
-    totalPortfolioValue,
-  } = data || {};
-
-  // Initialize selected assets for chart if empty (default to top 3 by market value)
-  React.useEffect(() => {
-    if (assets.length > 0 && selectedAssetSymbols.length === 0) {
-      setSelectedAssetSymbols(assets.slice(0, 3).map((a: AssetPerformanceItem) => a.symbol));
-    }
-  }, [assets]);
-
-  const handleToggleAssetSelection = (symbol: string) => {
-    setSelectedAssetSymbols((prev) =>
-      prev.includes(symbol) ? prev.filter((s) => s !== symbol) : [...prev, symbol],
-    );
-  };
-
-  const handleSelectAllVisible = (symbols: string[]) => {
-    setSelectedAssetSymbols(symbols);
-  };
+  const { assets = [], correlationMatrix, baseCurrency, totalPortfolioValue } = data || {};
 
   return (
     <div className="flex-1 space-y-6 p-6 max-w-7xl mx-auto">
@@ -87,7 +60,7 @@ export const AssetsPerformanceDashboard: React.FC<AssetsPerformanceDashboardProp
           </p>
         </div>
 
-        {/* Global Controls matching Monthly Performance */}
+        {/* Global Controls */}
         <div className="flex flex-wrap items-center gap-2.5">
           <DateRangeSelector value={dateRange} onChange={setDateRange} hiddenRanges={['1D']} />
           <PortfolioScopeFilter api={api} scope={scope} onScopeChange={setScope} />
@@ -131,9 +104,9 @@ export const AssetsPerformanceDashboard: React.FC<AssetsPerformanceDashboardProp
           {/* Navigation Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
             <TabsList className="grid w-full sm:w-auto grid-cols-2">
-              <TabsTrigger value="comparison" className="flex items-center gap-2 text-xs">
+              <TabsTrigger value="overview" className="flex items-center gap-2 text-xs">
                 <TrendingUp className="w-3.5 h-3.5" />
-                <span>Overview & Comparison</span>
+                <span>Holdings Performance</span>
               </TabsTrigger>
               <TabsTrigger value="correlation" className="flex items-center gap-2 text-xs">
                 <Grid className="w-3.5 h-3.5" />
@@ -141,24 +114,11 @@ export const AssetsPerformanceDashboard: React.FC<AssetsPerformanceDashboardProp
               </TabsTrigger>
             </TabsList>
 
-            {/* Tab 1: Comparison & Table */}
-            <TabsContent value="comparison" className="space-y-4">
-              <PerformanceComparisonChart
-                assets={assets}
-                selectedSymbols={selectedAssetSymbols}
-                portfolioSeries={portfolioSeries}
-                benchmarkSeries={benchmarkSeries}
-                benchmarkSymbol={benchmarkSymbol}
-                timeframe={dateRange ?? chartTimeframe}
-                onTimeframeChange={setChartTimeframe}
-              />
-
+            {/* Tab 1: Holdings Table */}
+            <TabsContent value="overview" className="space-y-4">
               <AssetsTable
                 assets={assets}
                 baseCurrency={baseCurrency}
-                selectedAssetSymbols={selectedAssetSymbols}
-                onToggleAssetSelection={handleToggleAssetSelection}
-                onSelectAllVisible={handleSelectAllVisible}
                 onOpenAssetDetail={setInspectedAsset}
               />
             </TabsContent>

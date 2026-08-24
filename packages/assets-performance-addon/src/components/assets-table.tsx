@@ -7,7 +7,6 @@ import {
   Input,
   Button,
   Badge,
-  Checkbox,
   formatAmount,
   formatPercent,
 } from '@wealthfolio/ui';
@@ -18,9 +17,6 @@ import { TickerLogo } from './ticker-logo';
 interface AssetsTableProps {
   assets: AssetPerformanceItem[];
   baseCurrency: string;
-  selectedAssetSymbols: string[];
-  onToggleAssetSelection: (symbol: string) => void;
-  onSelectAllVisible: (symbols: string[]) => void;
   onOpenAssetDetail: (asset: AssetPerformanceItem) => void;
 }
 
@@ -42,9 +38,6 @@ type SortOrder = 'asc' | 'desc';
 export const AssetsTable: React.FC<AssetsTableProps> = ({
   assets,
   baseCurrency,
-  selectedAssetSymbols,
-  onToggleAssetSelection,
-  onSelectAllVisible,
   onOpenAssetDetail,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -61,10 +54,13 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
   };
 
   const filteredAssets = useMemo(() => {
+    if (!searchTerm.trim()) return assets;
+    const term = searchTerm.toLowerCase().trim();
     return assets.filter(
       (a) =>
-        a.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        a.name.toLowerCase().includes(searchTerm.toLowerCase()),
+        a.symbol.toLowerCase().includes(term) ||
+        a.name.toLowerCase().includes(term) ||
+        (a.assetClass && a.assetClass.toLowerCase().includes(term)),
     );
   }, [assets, searchTerm]);
 
@@ -130,52 +126,35 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
     });
   }, [filteredAssets, sortField, sortOrder]);
 
-  const allVisibleSelected =
-    sortedAssets.length > 0 && sortedAssets.every((a) => selectedAssetSymbols.includes(a.symbol));
-
-  const handleSelectAllToggle = () => {
-    if (allVisibleSelected) {
-      onSelectAllVisible([]);
-    } else {
-      onSelectAllVisible(sortedAssets.map((a) => a.symbol));
-    }
-  };
-
   return (
-    <Card className="shadow-sm">
-      <CardHeader className="pb-3 border-b flex flex-row items-center justify-between gap-4">
-        <div>
-          <CardTitle className="text-base font-semibold">Individual Assets Breakdown</CardTitle>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Compare TWR, IRR, capital gain, and risk metrics across assets
-          </p>
-        </div>
+    <Card className="border shadow-xs">
+      <CardHeader className="p-4 pb-3 flex flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-2">
-          <div className="relative w-48 sm:w-64">
+          <CardTitle className="text-sm font-semibold">Holdings Performance Matrix</CardTitle>
+          <Badge variant="secondary" className="text-xs font-mono">
+            {assets.length} {assets.length === 1 ? 'Asset' : 'Assets'}
+          </Badge>
+        </div>
+
+        <div className="flex items-center gap-2 w-full max-w-xs">
+          <div className="relative w-full">
             <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
-              type="text"
-              placeholder="Search ticker or name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Filter by ticker or name..."
               className="h-8 pl-8 text-xs"
             />
           </div>
         </div>
       </CardHeader>
+
       <CardContent className="p-0 overflow-x-auto">
-        <table className="w-full text-left text-xs border-collapse">
+        <table className="w-full text-xs">
           <thead>
-            <tr className="border-b bg-muted/40 text-muted-foreground font-medium select-none">
-              <th className="py-2.5 px-3 w-10 text-center">
-                <Checkbox
-                  checked={allVisibleSelected}
-                  onCheckedChange={handleSelectAllToggle}
-                  aria-label="Select all"
-                />
-              </th>
+            <tr className="border-y bg-muted/40 text-muted-foreground font-medium select-none">
               <th
-                className="py-2.5 px-3 cursor-pointer hover:text-foreground transition-colors"
+                className="py-2.5 px-3 text-left cursor-pointer hover:text-foreground transition-colors"
                 onClick={() => handleSort('symbol')}
               >
                 <div className="flex items-center gap-1">
@@ -215,13 +194,14 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
                 onClick={() => handleSort('unrealizedPnl')}
               >
                 <div className="flex items-center justify-end gap-1">
-                  <span>Unrealized PnL</span>
+                  <span>PnL</span>
                   <ArrowUpDown className="w-3 h-3 opacity-60" />
                 </div>
               </th>
               <th
                 className="py-2.5 px-3 text-right cursor-pointer hover:text-foreground transition-colors"
                 onClick={() => handleSort('twr')}
+                title="Time-Weighted Return: compound growth of asset price"
               >
                 <div className="flex items-center justify-end gap-1">
                   <span>TWR</span>
@@ -231,6 +211,7 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
               <th
                 className="py-2.5 px-3 text-right cursor-pointer hover:text-foreground transition-colors"
                 onClick={() => handleSort('irr')}
+                title="Money-Weighted Return (Internal Rate of Return / TRI)"
               >
                 <div className="flex items-center justify-end gap-1">
                   <span className="font-semibold text-primary">IRR (TRI)</span>
@@ -263,31 +244,18 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
           <tbody className="divide-y">
             {sortedAssets.length === 0 ? (
               <tr>
-                <td colSpan={11} className="py-8 text-center text-muted-foreground">
+                <td colSpan={10} className="py-8 text-center text-muted-foreground">
                   No assets found for the selected portfolio scope.
                 </td>
               </tr>
             ) : (
               sortedAssets.map((asset) => {
-                const isSelected = selectedAssetSymbols.includes(asset.symbol);
                 const twr = asset.perf.displayTwr;
                 const irr = asset.perf.displayIrr;
                 const isPositivePnl = asset.unrealizedPnl >= 0;
 
                 return (
-                  <tr
-                    key={asset.symbol}
-                    className={`hover:bg-muted/30 transition-colors ${
-                      isSelected ? 'bg-primary/5' : ''
-                    }`}
-                  >
-                    <td className="py-2.5 px-3 text-center">
-                      <Checkbox
-                        checked={isSelected}
-                        onCheckedChange={() => onToggleAssetSelection(asset.symbol)}
-                        aria-label={`Select ${asset.symbol}`}
-                      />
-                    </td>
+                  <tr key={asset.symbol} className="hover:bg-muted/30 transition-colors">
                     <td className="py-2.5 px-3">
                       <div className="flex items-center gap-2.5">
                         <TickerLogo symbol={asset.symbol} size="sm" />
@@ -302,7 +270,7 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
                               </Badge>
                             )}
                           </div>
-                          <span className="text-[11px] text-muted-foreground truncate max-w-[150px]">
+                          <span className="text-[11px] text-muted-foreground truncate max-w-[180px]">
                             {asset.name}
                           </span>
                         </div>
