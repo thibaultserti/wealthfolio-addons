@@ -256,55 +256,77 @@ export function useAssetsPerformance({
         assetIdentifiers.map(async ({ symbol, assetId }) => {
           let series: ReturnData[] = [];
 
-          // 1. Try quotes.getHistory by symbol or assetId
+          const candidates = [
+            symbol,
+            assetId,
+            symbol?.includes('.') ? symbol.split('.')[0] : undefined,
+            symbol?.includes(':') ? symbol.split(':')[1] : undefined,
+          ].filter((c): c is string => Boolean(c && c.trim() && c !== 'CASH' && c !== 'cash'));
+
+          // 1. Try quotes.getHistory for each candidate
           if (api.quotes?.getHistory) {
-            try {
-              const quotes =
-                (await api.quotes.getHistory(symbol)) ||
-                (assetId ? await api.quotes.getHistory(assetId) : []);
-              if (Array.isArray(quotes) && quotes.length > 0) {
-                series = quotes
-                  .map((q: unknown) => {
-                    const quoteObj = q as {
-                      timestamp?: string;
-                      date?: string;
-                      close?: number;
-                      adjclose?: number;
-                      price?: number;
-                    };
-                    const dateStr = (quoteObj.timestamp || quoteObj.date || '').split('T')[0];
-                    const val = Number(quoteObj.adjclose ?? quoteObj.close ?? quoteObj.price ?? 0);
-                    return { date: dateStr, value: val };
-                  })
-                  .filter((p) => Boolean(p.date) && p.value > 0)
-                  .sort((a, b) => a.date.localeCompare(b.date));
+            for (const cand of candidates) {
+              if (series.length > 0) break;
+              try {
+                const quotes = await api.quotes.getHistory(cand);
+                if (Array.isArray(quotes) && quotes.length > 0) {
+                  const parsed = quotes
+                    .map((q: unknown) => {
+                      const quoteObj = q as {
+                        timestamp?: string;
+                        date?: string;
+                        close?: number;
+                        adjclose?: number;
+                        price?: number;
+                      };
+                      const dateRaw = quoteObj.timestamp || quoteObj.date || '';
+                      const dateStr = (typeof dateRaw === 'string' ? dateRaw : '').split('T')[0];
+                      const val = Number(
+                        quoteObj.adjclose ?? quoteObj.close ?? quoteObj.price ?? 0,
+                      );
+                      return { date: dateStr, value: val };
+                    })
+                    .filter((p) => Boolean(p.date) && p.value > 0)
+                    .sort((a, b) => a.date.localeCompare(b.date));
+
+                  if (parsed.length > 0) {
+                    series = parsed;
+                    break;
+                  }
+                }
+              } catch {
+                // Try next candidate
               }
-            } catch {
-              // Ignore and fallback
             }
           }
 
           // 2. Fallback to performance.calculateHistory
           if (series.length === 0 && api.performance?.calculateHistory) {
-            try {
-              const res = await api.performance.calculateHistory('symbol', symbol, '2000-01-01');
-              if (res?.series && res.series.length > 0) {
-                series = res.series;
+            for (const cand of candidates) {
+              if (series.length > 0) break;
+              try {
+                const res = await api.performance.calculateHistory('symbol', cand, '2000-01-01');
+                if (res?.series && res.series.length > 0) {
+                  series = res.series;
+                  break;
+                }
+              } catch {
+                // Try next
               }
-            } catch {
-              // Ignore
             }
           }
 
-          return { symbol, assetId, series };
+          return { symbol, assetId, candidates, series };
         }),
       );
 
       for (const r of results) {
         if (r.status === 'fulfilled' && r.value.series.length > 0) {
-          resultMap.set(r.value.symbol, r.value.series);
-          if (r.value.assetId) {
-            resultMap.set(r.value.assetId, r.value.series);
+          const { symbol, assetId, candidates, series } = r.value;
+          resultMap.set(symbol, series);
+          if (assetId) resultMap.set(assetId, series);
+          for (const c of candidates) {
+            resultMap.set(c, series);
           }
         }
       }
@@ -494,6 +516,7 @@ export function useAssetsPerformance({
         activities: matchingActivities,
         currentMarketValue: agg.marketValueBase,
         currentCostBasis: agg.costBasisBase,
+        currentQuantity: agg.quantity,
         allTimeTotalReturnPct: totalReturnPercent ?? totalGainPercent,
         openDate: effectiveOpenDate,
         dateRange,

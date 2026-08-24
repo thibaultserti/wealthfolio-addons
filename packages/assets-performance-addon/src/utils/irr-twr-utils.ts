@@ -205,6 +205,7 @@ export function computeAssetPeriodPerformance({
   activities,
   currentMarketValue,
   currentCostBasis,
+  currentQuantity,
   allTimeTotalReturnPct,
   openDate,
   dateRange,
@@ -213,6 +214,7 @@ export function computeAssetPeriodPerformance({
   activities: ActivityDetails[];
   currentMarketValue: number;
   currentCostBasis: number;
+  currentQuantity?: number;
   allTimeTotalReturnPct: number | null;
   openDate?: string | Date | null;
   dateRange?: DateRange;
@@ -232,30 +234,59 @@ export function computeAssetPeriodPerformance({
   const startIso = startDate ? toIsoDateString(startDate) : null;
   const endIso = endDate ? toIsoDateString(endDate) : null;
 
-  // Filter quote series for the timeframe
-  const periodQuotes = filterSeriesByDateRange(quotesSeries, dateRange);
-
   let periodTwrPct: number | null = null;
-  if (periodQuotes.length >= 2) {
-    const firstVal = periodQuotes[0].value;
-    const lastVal = periodQuotes[periodQuotes.length - 1].value;
-    if (firstVal > 0 && lastVal > 0) {
-      periodTwrPct = (lastVal - firstVal) / firstVal;
+  let startPrice = 0;
+  let endPrice = 0;
+
+  // 1. Locate start and end prices from quotes series
+  if (quotesSeries && quotesSeries.length > 0) {
+    const sorted = [...quotesSeries]
+      .filter((p) => Boolean(p.date) && p.value > 0)
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    if (sorted.length > 0) {
+      if (startIso) {
+        const beforeOrOnStart = sorted.filter((p) => p.date <= startIso);
+        const startPt =
+          beforeOrOnStart.length > 0 ? beforeOrOnStart[beforeOrOnStart.length - 1] : sorted[0];
+        startPrice = startPt.value;
+      } else {
+        startPrice = sorted[0].value;
+      }
+
+      if (endIso) {
+        const beforeOrOnEnd = sorted.filter((p) => p.date <= endIso);
+        const endPt =
+          beforeOrOnEnd.length > 0
+            ? beforeOrOnEnd[beforeOrOnEnd.length - 1]
+            : sorted[sorted.length - 1];
+        endPrice = endPt.value;
+      } else {
+        endPrice = sorted[sorted.length - 1].value;
+      }
+
+      if (startPrice > 0 && endPrice > 0) {
+        periodTwrPct = (endPrice - startPrice) / startPrice;
+      }
     }
-  } else if (!dateRange) {
-    periodTwrPct = allTimeTotalReturnPct;
   }
 
-  // Construct cash flows strictly inside the chosen period
+  if (periodTwrPct == null) {
+    periodTwrPct = dateRange ? null : allTimeTotalReturnPct;
+  }
+
+  // 2. Construct cash flows strictly inside the chosen period for Money-Weighted IRR
   const cashFlows: DatedCashFlow[] = [];
 
   // Determine initial position value at startDate
-  if (startIso && periodQuotes.length > 0) {
-    const startPrice = periodQuotes[0].value;
+  if (dateRange && startDate && startIso) {
     let qtyAtStart = 0;
+    let hasPriorActivities = false;
+
     for (const act of activities) {
       const actDateIso = toIsoDateString(act.date);
       if (actDateIso && actDateIso < startIso) {
+        hasPriorActivities = true;
         const actType = String(act.activityType).toUpperCase();
         if (actType === 'BUY' || actType === 'TRANSFER_IN') {
           qtyAtStart += Number(act.quantity ?? 0);
@@ -265,15 +296,31 @@ export function computeAssetPeriodPerformance({
       }
     }
 
-    if (qtyAtStart > 0 && startPrice > 0) {
+    if (!hasPriorActivities && currentQuantity && currentQuantity > 0) {
+      // If no prior activities recorded but position existed, assume held at start
+      qtyAtStart = currentQuantity;
+    }
+
+    const valAtStart =
+      qtyAtStart > 0 ? (startPrice > 0 ? qtyAtStart * startPrice : currentCostBasis) : 0;
+
+    if (valAtStart > 0) {
       cashFlows.push({
-        date: startDate!,
-        amount: -(qtyAtStart * startPrice),
+        date: startDate,
+        amount: -valAtStart,
+      });
+    }
+  } else if (!dateRange) {
+    // All-time: start with initial cost basis
+    if (currentCostBasis > 0) {
+      cashFlows.push({
+        date: startDate || openDate || new Date(now.getTime() - 365 * 24 * 3600 * 1000),
+        amount: -currentCostBasis,
       });
     }
   }
 
-  // Intermediate activities in this period
+  // Intermediate activities strictly in this period
   for (const act of activities) {
     const actDateIso = toIsoDateString(act.date);
     if (startIso && actDateIso < startIso) continue;
@@ -298,14 +345,6 @@ export function computeAssetPeriodPerformance({
     }
   }
 
-  // Fallback if no initial position and no activities
-  if (cashFlows.length === 0 && currentCostBasis > 0) {
-    cashFlows.push({
-      date: startDate || openDate || new Date(now.getTime() - 365 * 24 * 3600 * 1000),
-      amount: -currentCostBasis,
-    });
-  }
-
   // Terminal cash flow at end of period
   if (currentMarketValue > 0) {
     cashFlows.push({
@@ -314,8 +353,10 @@ export function computeAssetPeriodPerformance({
     });
   }
 
+  const effectiveTwr = dateRange ? periodTwrPct : (periodTwrPct ?? allTimeTotalReturnPct);
+
   const perf = computeHoldingPerformance({
-    totalReturnPct: periodTwrPct ?? allTimeTotalReturnPct,
+    totalReturnPct: effectiveTwr,
     openDate: startDate || openDate,
     endDate,
     cashFlows: cashFlows.length >= 2 ? cashFlows : undefined,
@@ -323,15 +364,17 @@ export function computeAssetPeriodPerformance({
 
   // Calculate period PnL
   let periodGain = 0;
-  if (periodTwrPct != null && currentMarketValue > 0) {
-    periodGain = currentMarketValue * (periodTwrPct / (1 + periodTwrPct));
+  if (effectiveTwr != null && currentMarketValue > 0) {
+    periodGain = currentMarketValue * (effectiveTwr / (1 + effectiveTwr));
   } else {
-    periodGain = currentMarketValue - currentCostBasis;
+    periodGain = dateRange ? 0 : currentMarketValue - currentCostBasis;
   }
 
   const periodGainPercent =
-    periodTwrPct ??
-    (currentCostBasis > 0 ? (currentMarketValue - currentCostBasis) / currentCostBasis : null);
+    effectiveTwr ??
+    (!dateRange && currentCostBasis > 0
+      ? (currentMarketValue - currentCostBasis) / currentCostBasis
+      : null);
 
   return {
     perf,

@@ -43,6 +43,18 @@ export function toWealthIndex(series: ReturnData[]): Array<{ date: string; value
   });
 }
 
+export function toIsoDateString(d: Date | string | number): string {
+  if (typeof d === 'string') {
+    return d.split('T')[0];
+  }
+  const dateObj = d instanceof Date ? d : new Date(d);
+  if (isNaN(dateObj.getTime())) return '';
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 /**
  * Filters a ReturnData series to match the selected DateRange or timeframe.
  */
@@ -58,12 +70,13 @@ export function filterSeriesByDateRange(
   }
 
   const { from, to } = range;
-  const fromIso = from ? from.toISOString().split('T')[0] : undefined;
-  const toIso = to ? to.toISOString().split('T')[0] : undefined;
+  const fromIso = from ? toIsoDateString(from) : undefined;
+  const toIso = to ? toIsoDateString(to) : undefined;
 
   return series.filter((pt) => {
-    if (fromIso && pt.date < fromIso) return false;
-    if (toIso && pt.date > toIso) return false;
+    const ptDate = typeof pt.date === 'string' ? pt.date.split('T')[0] : toIsoDateString(pt.date);
+    if (fromIso && ptDate < fromIso) return false;
+    if (toIso && ptDate > toIso) return false;
     return true;
   });
 }
