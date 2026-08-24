@@ -92,10 +92,12 @@ export function calculateAssetRiskMetrics({
   let annualizedReturn: number | null = null;
   let sharpeRatio: number | null = null;
 
-  if (dailyValues.length >= 5 && assetWealth.length >= 2) {
+  if (dailyValues.length >= 2 && assetWealth.length >= 2) {
     const mean = dailyValues.reduce((s, v) => s + v, 0) / dailyValues.length;
     const variance =
-      dailyValues.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / (dailyValues.length - 1);
+      dailyValues.length > 1
+        ? dailyValues.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / (dailyValues.length - 1)
+        : 0;
     const dailyStdDev = Math.sqrt(variance);
     volatility = dailyStdDev * Math.sqrt(252); // 252 trading days
 
@@ -141,7 +143,7 @@ export function calculateAssetRiskMetrics({
   let correlationPortfolio: number | null = null;
   if (portfolioDaily) {
     const res = computePearsonCorrelation(assetDaily, portfolioDaily);
-    if (res.commonPoints >= 5) {
+    if (res.commonPoints >= 2) {
       correlationPortfolio = res.correlation;
     }
   }
@@ -153,7 +155,7 @@ export function calculateAssetRiskMetrics({
 
   if (benchmarkDaily && benchmarkWealth.length >= 2) {
     const res = computePearsonCorrelation(assetDaily, benchmarkDaily);
-    if (res.commonPoints >= 5) {
+    if (res.commonPoints >= 2) {
       correlationBenchmark = res.correlation;
 
       // Find common dates for Beta calculation
@@ -162,7 +164,7 @@ export function calculateAssetRiskMetrics({
         if (benchmarkDaily.has(d)) commonDates.push(d);
       }
 
-      if (commonDates.length >= 5) {
+      if (commonDates.length >= 2) {
         const aVals = commonDates.map((d) => assetDaily.get(d)!);
         const bVals = commonDates.map((d) => benchmarkDaily.get(d)!);
 
