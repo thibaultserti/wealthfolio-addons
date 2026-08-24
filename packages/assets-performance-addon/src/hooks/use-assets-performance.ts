@@ -495,10 +495,25 @@ export function useAssetsPerformance({
         (agg.assetId ? assetSeriesMap.get(agg.assetId) : undefined) ??
         [];
 
+      // Filter series for risk metrics according to dateRange or holding open date
+      const openDateIso = effectiveOpenDate
+        ? (typeof effectiveOpenDate === 'string'
+            ? effectiveOpenDate
+            : effectiveOpenDate.toISOString()
+          ).split('T')[0]
+        : undefined;
+
+      const effectiveRange =
+        dateRange ?? (openDateIso ? { from: new Date(openDateIso), to: undefined } : undefined);
+
+      const filteredQuotes = filterSeriesByDateRange(quotesSeries, effectiveRange);
+      const filteredBenchmark = filterSeriesByDateRange(benchmarkSeries, effectiveRange);
+      const filteredPortfolio = filterSeriesByDateRange(portfolioSeries, effectiveRange);
+
       const riskMetrics = calculateAssetRiskMetrics({
-        assetSeries: quotesSeries,
-        benchmarkSeries,
-        portfolioSeries,
+        assetSeries: filteredQuotes.length >= 2 ? filteredQuotes : quotesSeries,
+        benchmarkSeries: filteredBenchmark.length >= 2 ? filteredBenchmark : benchmarkSeries,
+        portfolioSeries: filteredPortfolio.length >= 2 ? filteredPortfolio : portfolioSeries,
       });
 
       const weight = portfolioVal > 0 ? (agg.marketValueBase / portfolioVal) * 100 : 0;
