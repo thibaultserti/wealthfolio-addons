@@ -7,6 +7,39 @@ import type {
 } from '../types';
 
 /**
+ * Converts a raw series (which could be absolute prices, % return series, or decimal cumulative return series)
+ * into a continuous normalized Wealth/Price index series V_t > 0.
+ */
+export function toWealthIndex(series: ReturnData[]): Array<{ date: string; value: number }> {
+  if (!series || series.length === 0) return [];
+  const sorted = [...series]
+    .filter((p) => Number.isFinite(p.value))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  if (sorted.length === 0) return [];
+
+  // Determine if series values are absolute prices (e.g. all > 0, typical stock price > 1.0)
+  // or decimal / percentage cumulative returns (e.g. starting near 0)
+  const firstVal = sorted[0].value;
+  const allPositive = sorted.every((p) => p.value > 0);
+  const isAbsolutePrice =
+    allPositive && Math.abs(firstVal) >= 1.0 && !sorted.some((p) => p.value === 0);
+
+  if (isAbsolutePrice) {
+    return sorted.map((p) => ({ date: p.date, value: p.value }));
+  }
+
+  // It's a cumulative return series (e.g. 0, 0.05, -0.02, 0.12 or 0%, 5%, -2%)
+  const maxAbs = Math.max(...sorted.map((p) => Math.abs(p.value)));
+  const isPercentage = maxAbs > 5.0 && sorted.some((p) => Math.abs(p.value) > 2.0);
+
+  return sorted.map((p) => {
+    const decimalReturn = isPercentage ? p.value / 100 : p.value;
+    const wealth = Math.max(0.0001, 1 + decimalReturn);
+    return { date: p.date, value: wealth * 100 };
+  });
+}
+
+/**
  * Filters a ReturnData series to match the selected DateRange or timeframe.
  */
 export function filterSeriesByDateRange(
@@ -75,23 +108,25 @@ export function filterSeriesByTimeframe(
 }
 
 /**
- * Calculates daily percentage returns from a price/quote series or cumulative return series.
+ * Calculates daily percentage returns from a price or wealth series.
  * returns[t] = (val[t] - val[t-1]) / val[t-1]
  */
-export function computeDailyReturns(series: ReturnData[]): Map<string, number> {
+export function computeDailyReturns(
+  series: Array<{ date: string; value: number }> | ReturnData[],
+): Map<string, number> {
   const dailyReturns = new Map<string, number>();
   if (!series || series.length < 2) return dailyReturns;
 
-  // Ensure series is sorted by date ascending
-  const sorted = [...series].sort((a, b) => a.date.localeCompare(b.date));
+  const wealthSeries = toWealthIndex(series);
+  if (wealthSeries.length < 2) return dailyReturns;
 
-  for (let i = 1; i < sorted.length; i++) {
-    const prev = sorted[i - 1].value;
-    const curr = sorted[i].value;
+  for (let i = 1; i < wealthSeries.length; i++) {
+    const prev = wealthSeries[i - 1].value;
+    const curr = wealthSeries[i].value;
 
-    if (prev !== 0 && Number.isFinite(prev) && Number.isFinite(curr)) {
-      const ret = (curr - prev) / Math.abs(prev);
-      dailyReturns.set(sorted[i].date, ret);
+    if (prev > 0 && Number.isFinite(curr)) {
+      const ret = (curr - prev) / prev;
+      dailyReturns.set(wealthSeries[i].date, ret);
     }
   }
 
@@ -105,10 +140,15 @@ export function computeDailyReturns(series: ReturnData[]): Map<string, number> {
 export function alignSeriesWithForwardFill(
   assetSeries: Array<{ id: string; symbol: string; series: ReturnData[] }>,
 ): Map<string, Map<string, number>> {
-  // 1. Gather all unique sorted dates across all assets
+  // 1. Convert all series to wealth index and gather all unique sorted dates
+  const wealthAssetSeries = assetSeries.map((a) => ({
+    ...a,
+    wealthSeries: toWealthIndex(a.series),
+  }));
+
   const allDatesSet = new Set<string>();
-  for (const asset of assetSeries) {
-    for (const pt of asset.series) {
+  for (const asset of wealthAssetSeries) {
+    for (const pt of asset.wealthSeries) {
       if (pt.date && Number.isFinite(pt.value)) {
         allDatesSet.add(pt.date);
       }
@@ -118,16 +158,16 @@ export function alignSeriesWithForwardFill(
   const sortedDates = Array.from(allDatesSet).sort();
   const alignedDailyReturns = new Map<string, Map<string, number>>();
 
-  for (const asset of assetSeries) {
+  for (const asset of wealthAssetSeries) {
     const assetReturns = new Map<string, number>();
-    if (!asset.series || asset.series.length < 2) {
+    if (!asset.wealthSeries || asset.wealthSeries.length < 2) {
       alignedDailyReturns.set(asset.symbol, assetReturns);
       continue;
     }
 
     // Map existing dates -> value
     const priceMap = new Map<string, number>();
-    for (const pt of asset.series) {
+    for (const pt of asset.wealthSeries) {
       if (Number.isFinite(pt.value)) {
         priceMap.set(pt.date, pt.value);
       }

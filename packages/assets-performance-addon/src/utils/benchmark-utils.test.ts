@@ -34,6 +34,27 @@ describe('benchmark-utils', () => {
     expect(metrics.correlationBenchmark).toBeCloseTo(1.0, 2);
   });
 
+  it('handles cumulative decimal return series without explosive volatility or drawdown', () => {
+    const assetSeries: ReturnData[] = [
+      { date: '2024-01-01', value: 0.0 },
+      { date: '2024-01-02', value: 0.01 },
+      { date: '2024-01-03', value: -0.02 },
+      { date: '2024-01-04', value: 0.03 },
+      { date: '2024-01-05', value: 0.02 },
+      { date: '2024-01-06', value: 0.05 },
+    ];
+
+    const metrics = calculateAssetRiskMetrics({
+      assetSeries,
+    });
+
+    expect(metrics.volatility).not.toBeNull();
+    expect(metrics.volatility!).toBeLessThan(1.5); // Reasonably bounded annualized volatility (< 150%)
+    expect(metrics.maxDrawdown).not.toBeNull();
+    expect(metrics.maxDrawdown!).toBeGreaterThanOrEqual(0);
+    expect(metrics.maxDrawdown!).toBeLessThanOrEqual(1.0); // Never > 100%
+  });
+
   it('normalizes and rebases multi-asset series to start at 0%', () => {
     const portfolioSeries: ReturnData[] = [
       { date: '2024-01-01', value: 100 },

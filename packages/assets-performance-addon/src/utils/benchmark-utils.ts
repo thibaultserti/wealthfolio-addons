@@ -4,6 +4,7 @@ import {
   computeDailyReturns,
   computePearsonCorrelation,
   filterSeriesByDateRange,
+  toWealthIndex,
 } from './correlation-utils';
 
 export const BENCHMARK_PRESETS: BenchmarkPreset[] = [
@@ -59,36 +60,52 @@ export function calculateAssetRiskMetrics({
   portfolioSeries?: ReturnData[];
   riskFreeRate?: number;
 }): AssetRiskMetrics {
-  const assetDaily = computeDailyReturns(assetSeries);
-  const benchmarkDaily = benchmarkSeries ? computeDailyReturns(benchmarkSeries) : null;
-  const portfolioDaily = portfolioSeries ? computeDailyReturns(portfolioSeries) : null;
+  const assetWealth = toWealthIndex(assetSeries);
+  const benchmarkWealth = benchmarkSeries ? toWealthIndex(benchmarkSeries) : [];
+  const portfolioWealth = portfolioSeries ? toWealthIndex(portfolioSeries) : [];
 
-  // 1. Annualized Volatility
+  const assetDaily = computeDailyReturns(assetWealth);
+  const benchmarkDaily = benchmarkWealth.length > 0 ? computeDailyReturns(benchmarkWealth) : null;
+  const portfolioDaily = portfolioWealth.length > 0 ? computeDailyReturns(portfolioWealth) : null;
+
+  // 1. Annualized Volatility, CAGR and Sharpe Ratio
   const dailyValues = Array.from(assetDaily.values());
   let volatility: number | null = null;
   let annualizedReturn: number | null = null;
   let sharpeRatio: number | null = null;
 
-  if (dailyValues.length >= 5) {
+  if (dailyValues.length >= 5 && assetWealth.length >= 2) {
     const mean = dailyValues.reduce((s, v) => s + v, 0) / dailyValues.length;
     const variance =
       dailyValues.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / (dailyValues.length - 1);
     const dailyStdDev = Math.sqrt(variance);
     volatility = dailyStdDev * Math.sqrt(252); // 252 trading days
 
-    annualizedReturn = Math.pow(1 + mean, 252) - 1;
-    if (volatility > 0) {
+    // Geometric Compound Annual Growth Rate (CAGR) from Wealth Index
+    const startVal = assetWealth[0].value;
+    const endVal = assetWealth[assetWealth.length - 1].value;
+    const numDays = Math.max(1, dailyValues.length);
+
+    if (startVal > 0 && endVal > 0) {
+      const totalGrowth = endVal / startVal;
+      const years = numDays / 252;
+      annualizedReturn = years > 0 ? Math.pow(totalGrowth, 1 / years) - 1 : totalGrowth - 1;
+    } else {
+      annualizedReturn = Math.pow(1 + mean, 252) - 1;
+    }
+
+    if (volatility > 0 && annualizedReturn != null) {
       sharpeRatio = (annualizedReturn - riskFreeRate) / volatility;
     }
   }
 
-  // 2. Max Drawdown
+  // 2. Max Drawdown calculated on continuous Wealth Index (always bounded in [0, 1])
   let maxDrawdown: number | null = null;
-  if (assetSeries.length >= 2) {
+  if (assetWealth.length >= 2) {
     let peak = -Infinity;
     let maxDd = 0;
 
-    for (const pt of assetSeries) {
+    for (const pt of assetWealth) {
       if (pt.value > peak) {
         peak = pt.value;
       }
@@ -99,7 +116,7 @@ export function calculateAssetRiskMetrics({
         }
       }
     }
-    maxDrawdown = maxDd;
+    maxDrawdown = Math.min(1.0, Math.max(0.0, maxDd));
   }
 
   // 3. Correlation with Portfolio
@@ -116,7 +133,7 @@ export function calculateAssetRiskMetrics({
   let beta: number | null = null;
   let correlationBenchmark: number | null = null;
 
-  if (benchmarkDaily) {
+  if (benchmarkDaily && benchmarkWealth.length >= 2) {
     const res = computePearsonCorrelation(assetDaily, benchmarkDaily);
     if (res.commonPoints >= 5) {
       correlationBenchmark = res.correlation;
@@ -144,9 +161,17 @@ export function calculateAssetRiskMetrics({
         if (varB > 0) {
           beta = cov / varB;
 
-          // Annualized alpha: R_asset - (Rf + Beta * (R_bm - Rf))
-          const benchmarkAnnRet = Math.pow(1 + meanB, 252) - 1;
-          if (annualizedReturn != null) {
+          // Benchmark CAGR
+          const bmStart = benchmarkWealth[0].value;
+          const bmEnd = benchmarkWealth[benchmarkWealth.length - 1].value;
+          const bmYears = Math.max(1, benchmarkWealth.length - 1) / 252;
+          const benchmarkAnnRet =
+            bmStart > 0 && bmEnd > 0
+              ? Math.pow(bmEnd / bmStart, 1 / bmYears) - 1
+              : Math.pow(1 + meanB, 252) - 1;
+
+          // Jensen's Alpha: R_asset - (Rf + Beta * (R_bm - Rf))
+          if (annualizedReturn != null && Number.isFinite(beta)) {
             alpha = annualizedReturn - (riskFreeRate + beta * (benchmarkAnnRet - riskFreeRate));
           }
         }
@@ -186,17 +211,20 @@ export function buildNormalizedComparisonSeries({
   benchmarkSymbol?: string;
   assetSeriesMap: Map<string, { symbol: string; series: ReturnData[] }>;
 }): NormalizedChartPoint[] {
-  // 1. Filter each series by timeframe / dateRange
+  // 1. Filter each series by timeframe / dateRange and convert to Wealth Index
   const filteredPortfolio = portfolioSeries
-    ? filterSeriesByDateRange(portfolioSeries, timeframe)
+    ? toWealthIndex(filterSeriesByDateRange(portfolioSeries, timeframe))
     : [];
   const filteredBenchmark = benchmarkSeries
-    ? filterSeriesByDateRange(benchmarkSeries, timeframe)
+    ? toWealthIndex(filterSeriesByDateRange(benchmarkSeries, timeframe))
     : [];
 
-  const filteredAssets = new Map<string, { symbol: string; series: ReturnData[] }>();
+  const filteredAssets = new Map<
+    string,
+    { symbol: string; series: Array<{ date: string; value: number }> }
+  >();
   for (const [key, item] of assetSeriesMap) {
-    const fSeries = filterSeriesByDateRange(item.series, timeframe);
+    const fSeries = toWealthIndex(filterSeriesByDateRange(item.series, timeframe));
     if (fSeries.length > 0) {
       filteredAssets.set(key, { symbol: item.symbol, series: fSeries });
     }
@@ -212,82 +240,60 @@ export function buildNormalizedComparisonSeries({
   if (sortedDates.length === 0) return [];
 
   // Helper map from date -> value
-  const toMap = (s: ReturnData[]) => {
+  const toMap = (s: Array<{ date: string; value: number }>) => {
     const m = new Map<string, number>();
     s.forEach((pt) => m.set(pt.date, pt.value));
     return m;
   };
 
   const portMap = toMap(filteredPortfolio);
-  const bmMap = toMap(filteredBenchmark);
-  const assetMaps = new Map<string, Map<string, number>>();
-  filteredAssets.forEach((item, key) => assetMaps.set(key, toMap(item.series)));
+  const benchMap = toMap(filteredBenchmark);
 
-  // Find baseline (initial value) for each series
-  const findBaseline = (m: Map<string, number>) => {
-    for (const d of sortedDates) {
-      if (m.has(d) && Number.isFinite(m.get(d)!)) {
-        return m.get(d)!;
-      }
-    }
-    return null;
-  };
+  const assetMaps = new Map<string, { symbol: string; map: Map<string, number> }>();
+  for (const [key, item] of filteredAssets) {
+    assetMaps.set(key, { symbol: item.symbol, map: toMap(item.series) });
+  }
 
-  const portBase = findBaseline(portMap);
-  const bmBase = findBaseline(bmMap);
+  // 3. Find base value (first point) for each series to compute relative % change: (V_t - V_0) / V_0 * 100
+  const findBase = (s: Array<{ date: string; value: number }>) =>
+    s.length > 0 ? s[0].value : null;
+
+  const portBase = findBase(filteredPortfolio);
+  const benchBase = findBase(filteredBenchmark);
+
   const assetBases = new Map<string, number | null>();
-  assetMaps.forEach((m, key) => assetBases.set(key, findBaseline(m)));
+  for (const [key, item] of filteredAssets) {
+    assetBases.set(key, findBase(item.series));
+  }
 
-  const chartData: NormalizedChartPoint[] = [];
-
-  let lastPortVal = 0;
-  let lastBmVal = 0;
-  const lastAssetVals = new Map<string, number>();
+  const result: NormalizedChartPoint[] = [];
 
   for (const date of sortedDates) {
     const point: NormalizedChartPoint = { date };
 
-    // Helper to calculate rebased % change relative to baseline
-    const calcRebased = (curr: number, base: number) => {
-      if (Math.abs(base) > 1.0) {
-        // Absolute prices / indices (e.g. 150 -> 165)
-        return ((curr - base) / Math.abs(base)) * 100;
-      }
-      // Rate / decimal series (e.g. 0.05 -> 0.10)
-      return base >= -0.99 ? ((1 + curr) / (1 + base) - 1) * 100 : (curr - base) * 100;
-    };
-
-    // Portfolio
-    if (portBase != null) {
-      if (portMap.has(date)) {
-        lastPortVal = calcRebased(portMap.get(date)!, portBase);
-      }
-      point['portfolio'] = Number(lastPortVal.toFixed(2));
+    // Portfolio normalized return (%)
+    if (portBase != null && portMap.has(date) && portBase !== 0) {
+      const v = portMap.get(date)!;
+      point.portfolio = Number((((v - portBase) / portBase) * 100).toFixed(2));
     }
 
-    // Benchmark
-    if (bmBase != null && benchmarkSymbol) {
-      if (bmMap.has(date)) {
-        lastBmVal = calcRebased(bmMap.get(date)!, bmBase);
-      }
-      point['benchmark'] = Number(lastBmVal.toFixed(2));
+    // Benchmark normalized return (%)
+    if (benchBase != null && benchMap.has(date) && benchBase !== 0) {
+      const v = benchMap.get(date)!;
+      point.benchmark = Number((((v - benchBase) / benchBase) * 100).toFixed(2));
     }
 
-    // Assets
-    for (const [key, item] of filteredAssets) {
+    // Asset normalized returns (%)
+    for (const [key, { symbol, map }] of assetMaps) {
       const base = assetBases.get(key);
-      const aMap = assetMaps.get(key)!;
-      if (base != null) {
-        if (aMap.has(date)) {
-          lastAssetVals.set(key, calcRebased(aMap.get(date)!, base));
-        }
-        const val = lastAssetVals.get(key) ?? 0;
-        point[item.symbol] = Number(val.toFixed(2));
+      if (base != null && map.has(date) && base !== 0) {
+        const v = map.get(date)!;
+        point[symbol] = Number((((v - base) / base) * 100).toFixed(2));
       }
     }
 
-    chartData.push(point);
+    result.push(point);
   }
 
-  return chartData;
+  return result;
 }
