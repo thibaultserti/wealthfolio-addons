@@ -219,45 +219,99 @@ export function useAssetsPerformance({
   const portfolioSeries = portfolioHistoryQuery.data ?? [];
   const benchmarkSeries = benchmarkHistoryQuery.data ?? [];
 
-  // Query 6: Quote / Price history for all unique symbols in portfolio
-  const symbols = useMemo(() => {
-    return Array.from(
-      new Set(
-        rawHoldings
-          .map((h) => h.instrument?.symbol || h.id)
-          .filter((s): s is string => Boolean(s && s.trim() && s !== 'CASH' && s !== 'cash')),
-      ),
-    );
+  // Query 6: Quote / Price history for all unique symbols and assets in portfolio
+  const assetIdentifiers = useMemo(() => {
+    const list: Array<{ symbol: string; assetId?: string }> = [];
+    const seen = new Set<string>();
+
+    for (const h of rawHoldings) {
+      const sym = h.instrument?.symbol;
+      const assetId = h.instrument?.id || h.id;
+      const key = `${sym || ''}:${assetId || ''}`;
+
+      if (!seen.has(key) && (sym || assetId)) {
+        seen.add(key);
+        if (sym && sym !== 'CASH' && sym !== 'cash') {
+          list.push({ symbol: sym, assetId });
+        } else if (assetId) {
+          list.push({ symbol: assetId, assetId });
+        }
+      }
+    }
+    return list;
   }, [rawHoldings]);
 
-  const symbolsKey = symbols.sort().join(',');
+  const identifiersKey = assetIdentifiers
+    .map((i) => `${i.symbol}:${i.assetId || ''}`)
+    .sort()
+    .join(',');
 
   const assetSeriesQuery = useQuery({
-    queryKey: ['assets-quote-series', symbolsKey],
+    queryKey: ['assets-quote-series', identifiersKey],
     queryFn: async () => {
-      if (symbols.length === 0) return new Map<string, ReturnData[]>();
+      if (assetIdentifiers.length === 0) return new Map<string, ReturnData[]>();
 
       const resultMap = new Map<string, ReturnData[]>();
       const results = await Promise.allSettled(
-        symbols.map(async (sym: string) => {
-          try {
-            const res = await api.performance.calculateHistory('symbol', sym, '2000-01-01');
-            return { symbol: sym, series: res?.series ?? [] };
-          } catch {
-            return { symbol: sym, series: [] as ReturnData[] };
+        assetIdentifiers.map(async ({ symbol, assetId }) => {
+          let series: ReturnData[] = [];
+
+          // 1. Try quotes.getHistory by symbol or assetId
+          if (api.quotes?.getHistory) {
+            try {
+              const quotes =
+                (await api.quotes.getHistory(symbol)) ||
+                (assetId ? await api.quotes.getHistory(assetId) : []);
+              if (Array.isArray(quotes) && quotes.length > 0) {
+                series = quotes
+                  .map((q: unknown) => {
+                    const quoteObj = q as {
+                      timestamp?: string;
+                      date?: string;
+                      close?: number;
+                      adjclose?: number;
+                      price?: number;
+                    };
+                    const dateStr = (quoteObj.timestamp || quoteObj.date || '').split('T')[0];
+                    const val = Number(quoteObj.adjclose ?? quoteObj.close ?? quoteObj.price ?? 0);
+                    return { date: dateStr, value: val };
+                  })
+                  .filter((p) => Boolean(p.date) && p.value > 0)
+                  .sort((a, b) => a.date.localeCompare(b.date));
+              }
+            } catch {
+              // Ignore and fallback
+            }
           }
+
+          // 2. Fallback to performance.calculateHistory
+          if (series.length === 0 && api.performance?.calculateHistory) {
+            try {
+              const res = await api.performance.calculateHistory('symbol', symbol, '2000-01-01');
+              if (res?.series && res.series.length > 0) {
+                series = res.series;
+              }
+            } catch {
+              // Ignore
+            }
+          }
+
+          return { symbol, assetId, series };
         }),
       );
 
       for (const r of results) {
         if (r.status === 'fulfilled' && r.value.series.length > 0) {
           resultMap.set(r.value.symbol, r.value.series);
+          if (r.value.assetId) {
+            resultMap.set(r.value.assetId, r.value.series);
+          }
         }
       }
 
       return resultMap;
     },
-    enabled: symbols.length > 0,
+    enabled: assetIdentifiers.length > 0,
     staleTime: 300_000,
   });
 
@@ -436,7 +490,10 @@ export function useAssetsPerformance({
         cashFlows: cashFlows.length >= 2 ? cashFlows : undefined,
       });
 
-      const quotesSeries = assetSeriesMap.get(agg.symbol) ?? [];
+      const quotesSeries =
+        assetSeriesMap.get(agg.symbol) ??
+        (agg.assetId ? assetSeriesMap.get(agg.assetId) : undefined) ??
+        [];
 
       const riskMetrics = calculateAssetRiskMetrics({
         assetSeries: quotesSeries,

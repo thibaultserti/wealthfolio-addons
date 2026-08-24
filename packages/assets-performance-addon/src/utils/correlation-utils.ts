@@ -99,6 +99,72 @@ export function computeDailyReturns(series: ReturnData[]): Map<string, number> {
 }
 
 /**
+ * Aligns multiple asset price series onto a unified calendar of market dates with forward-fill,
+ * eliminating missing day gaps (e.g. US vs European bank holidays) and avoiding "holes" in correlations.
+ */
+export function alignSeriesWithForwardFill(
+  assetSeries: Array<{ id: string; symbol: string; series: ReturnData[] }>,
+): Map<string, Map<string, number>> {
+  // 1. Gather all unique sorted dates across all assets
+  const allDatesSet = new Set<string>();
+  for (const asset of assetSeries) {
+    for (const pt of asset.series) {
+      if (pt.date && Number.isFinite(pt.value)) {
+        allDatesSet.add(pt.date);
+      }
+    }
+  }
+
+  const sortedDates = Array.from(allDatesSet).sort();
+  const alignedDailyReturns = new Map<string, Map<string, number>>();
+
+  for (const asset of assetSeries) {
+    const assetReturns = new Map<string, number>();
+    if (!asset.series || asset.series.length < 2) {
+      alignedDailyReturns.set(asset.symbol, assetReturns);
+      continue;
+    }
+
+    // Map existing dates -> value
+    const priceMap = new Map<string, number>();
+    for (const pt of asset.series) {
+      if (Number.isFinite(pt.value)) {
+        priceMap.set(pt.date, pt.value);
+      }
+    }
+
+    // Find the first date this asset has data
+    let hasStarted = false;
+    let lastPrice = 0;
+    const alignedPrices: Array<{ date: string; price: number }> = [];
+
+    for (const date of sortedDates) {
+      if (priceMap.has(date)) {
+        hasStarted = true;
+        lastPrice = priceMap.get(date)!;
+        alignedPrices.push({ date, price: lastPrice });
+      } else if (hasStarted) {
+        // Forward fill previous close price
+        alignedPrices.push({ date, price: lastPrice });
+      }
+    }
+
+    // Compute daily returns from forward-filled prices
+    for (let i = 1; i < alignedPrices.length; i++) {
+      const prev = alignedPrices[i - 1].price;
+      const curr = alignedPrices[i].price;
+      if (prev > 0 && Number.isFinite(curr)) {
+        assetReturns.set(alignedPrices[i].date, (curr - prev) / prev);
+      }
+    }
+
+    alignedDailyReturns.set(asset.symbol, assetReturns);
+  }
+
+  return alignedDailyReturns;
+}
+
+/**
  * Calculates the Pearson correlation coefficient between two series of daily returns.
  */
 export function computePearsonCorrelation(
@@ -156,39 +222,61 @@ export function buildCorrelationMatrix(
   assets: Array<{ id: string; symbol: string; name: string; series: ReturnData[] }>,
   timeframe: DateRange | ComparisonTimeframe = '1Y',
 ): CorrelationMatrixData {
-  const filteredAssets = assets.map((a) => ({
-    ...a,
-    dailyReturns: computeDailyReturns(filterSeriesByDateRange(a.series, timeframe)),
-  }));
+  // 1. Filter series by timeframe/dateRange
+  const filteredAssets = assets
+    .filter((a) => a.series && a.series.length > 0)
+    .map((a) => ({
+      ...a,
+      filteredSeries: filterSeriesByDateRange(a.series, timeframe),
+    }))
+    .filter((a) => a.filteredSeries.length > 0);
 
-  const symbols = filteredAssets.map((a) => a.symbol);
+  // If no assets have enough series, fallback to input assets list
+  const activeAssets = filteredAssets.length > 0 ? filteredAssets : assets;
+
+  // 2. Synchronize price calendars with forward-fill
+  const alignedDailyReturns = alignSeriesWithForwardFill(
+    activeAssets.map((a) => ({
+      id: a.id,
+      symbol: a.symbol,
+      series:
+        'filteredSeries' in a
+          ? (a as unknown as { filteredSeries: ReturnData[] }).filteredSeries
+          : a.series,
+    })),
+  );
+
+  const symbols = activeAssets.map((a) => a.symbol);
   const names: Record<string, string> = {};
-  filteredAssets.forEach((a) => {
+  activeAssets.forEach((a) => {
     names[a.symbol] = a.name;
   });
 
-  const n = filteredAssets.length;
+  const n = activeAssets.length;
   const matrix: number[][] = Array.from({ length: n }, () => Array(n).fill(1));
   const pairs: CorrelationCell[] = [];
 
   for (let i = 0; i < n; i++) {
+    const symA = symbols[i];
+    const returnsA = alignedDailyReturns.get(symA) ?? new Map<string, number>();
+
     for (let j = 0; j < n; j++) {
+      const symB = symbols[j];
+      const returnsB = alignedDailyReturns.get(symB) ?? new Map<string, number>();
+
       if (i === j) {
         matrix[i][j] = 1;
       } else if (j > i) {
-        const { correlation, commonPoints } = computePearsonCorrelation(
-          filteredAssets[i].dailyReturns,
-          filteredAssets[j].dailyReturns,
-        );
+        const { correlation, commonPoints } = computePearsonCorrelation(returnsA, returnsB);
 
         matrix[i][j] = correlation;
         matrix[j][i] = correlation;
 
         pairs.push({
-          assetAId: filteredAssets[i].id,
-          assetASymbol: filteredAssets[i].symbol,
-          assetBId: filteredAssets[j].id,
-          assetBSymbol: filteredAssets[j].symbol,
+          assetAId: activeAssets[i].id,
+          assetASymbol: symA,
+          assetBId: activeAssets[j].id,
+          assetBSymbol: symB,
           correlation,
           commonPoints,
         });
