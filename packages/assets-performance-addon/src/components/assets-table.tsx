@@ -5,19 +5,17 @@ import {
   CardHeader,
   CardTitle,
   Input,
-  Button,
   Badge,
   formatAmount,
   formatPercent,
 } from '@wealthfolio/ui';
-import { Search, ArrowUpDown, Maximize2 } from 'lucide-react';
+import { Search, ArrowUpDown } from 'lucide-react';
 import type { AssetPerformanceItem } from '../types';
 import { TickerLogo } from './ticker-logo';
 
 interface AssetsTableProps {
   assets: AssetPerformanceItem[];
   baseCurrency: string;
-  onOpenAssetDetail: (asset: AssetPerformanceItem) => void;
 }
 
 type SortField =
@@ -29,17 +27,11 @@ type SortField =
   | 'totalReturnPercent'
   | 'twr'
   | 'irr'
-  | 'weight'
-  | 'beta'
-  | 'volatility';
+  | 'weight';
 
 type SortOrder = 'asc' | 'desc';
 
-export const AssetsTable: React.FC<AssetsTableProps> = ({
-  assets,
-  baseCurrency,
-  onOpenAssetDetail,
-}) => {
+export const AssetsTable: React.FC<AssetsTableProps> = ({ assets, baseCurrency }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('marketValue');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
@@ -106,14 +98,6 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
           valA = a.weight;
           valB = b.weight;
           break;
-        case 'beta':
-          valA = a.riskMetrics?.beta ?? -Infinity;
-          valB = b.riskMetrics?.beta ?? -Infinity;
-          break;
-        case 'volatility':
-          valA = a.riskMetrics?.volatility ?? -Infinity;
-          valB = b.riskMetrics?.volatility ?? -Infinity;
-          break;
       }
 
       if (typeof valA === 'string' && typeof valB === 'string') {
@@ -130,7 +114,7 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
     <Card className="border shadow-xs">
       <CardHeader className="p-4 pb-3 flex flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-2">
-          <CardTitle className="text-sm font-semibold">Holdings Performance Matrix</CardTitle>
+          <CardTitle className="text-sm font-semibold">Holdings Performance</CardTitle>
           <Badge variant="secondary" className="text-xs font-mono">
             {assets.length} {assets.length === 1 ? 'Asset' : 'Assets'}
           </Badge>
@@ -218,33 +202,12 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
                   <ArrowUpDown className="w-3 h-3 opacity-60" />
                 </div>
               </th>
-              <th
-                className="py-2.5 px-3 text-right cursor-pointer hover:text-foreground transition-colors"
-                onClick={() => handleSort('beta')}
-                title="Beta vs Benchmark: Sensitivity to market movements (>1 = more volatile than market, <1 = defensive)"
-              >
-                <div className="flex items-center justify-end gap-1">
-                  <span>Beta</span>
-                  <ArrowUpDown className="w-3 h-3 opacity-60" />
-                </div>
-              </th>
-              <th
-                className="py-2.5 px-3 text-right cursor-pointer hover:text-foreground transition-colors"
-                onClick={() => handleSort('volatility')}
-                title="Annualized Volatility: Standard deviation of daily returns annualized (stdDev * √252)"
-              >
-                <div className="flex items-center justify-end gap-1">
-                  <span>Vol. (Ann.)</span>
-                  <ArrowUpDown className="w-3 h-3 opacity-60" />
-                </div>
-              </th>
-              <th className="py-2.5 px-3 text-center w-12">Details</th>
             </tr>
           </thead>
           <tbody className="divide-y">
             {sortedAssets.length === 0 ? (
               <tr>
-                <td colSpan={10} className="py-8 text-center text-muted-foreground">
+                <td colSpan={7} className="py-8 text-center text-muted-foreground">
                   No assets found for the selected portfolio scope.
                 </td>
               </tr>
@@ -270,7 +233,7 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
                               </Badge>
                             )}
                           </div>
-                          <span className="text-[11px] text-muted-foreground truncate max-w-[180px]">
+                          <span className="text-[11px] text-muted-foreground truncate max-w-[200px]">
                             {asset.name}
                           </span>
                         </div>
@@ -339,25 +302,6 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({
                       ) : (
                         <span className="text-muted-foreground text-xs">N/A</span>
                       )}
-                    </td>
-                    <td className="py-2.5 px-3 text-right text-muted-foreground font-mono">
-                      {asset.riskMetrics?.beta != null ? asset.riskMetrics.beta.toFixed(2) : '-'}
-                    </td>
-                    <td className="py-2.5 px-3 text-right text-muted-foreground font-mono">
-                      {asset.riskMetrics?.volatility != null
-                        ? formatPercent(asset.riskMetrics.volatility)
-                        : '-'}
-                    </td>
-                    <td className="py-2.5 px-3 text-center">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => onOpenAssetDetail(asset)}
-                        title="View Asset Deep Dive"
-                      >
-                        <Maximize2 className="w-3.5 h-3.5" />
-                      </Button>
                     </td>
                   </tr>
                 );

@@ -12,14 +12,12 @@ import {
   type DateRange,
 } from '@wealthfolio/ui';
 import { TrendingUp, Grid, RefreshCw, LineChart } from 'lucide-react';
-import type { PortfolioScope, ComparisonTimeframe, AssetPerformanceItem } from '../types';
+import type { PortfolioScope, ComparisonTimeframe } from '../types';
 import { useAssetsPerformance } from '../hooks/use-assets-performance';
 import { PortfolioScopeFilter } from './portfolio-scope-filter';
-import { BenchmarkSelector } from './benchmark-selector';
 import { PerformanceKpis } from './performance-kpis';
 import { AssetsTable } from './assets-table';
 import { CorrelationMatrix } from './correlation-matrix';
-import { AssetDetailModal } from './asset-detail-modal';
 
 interface AssetsPerformanceDashboardProps {
   api: HostAPI;
@@ -28,15 +26,13 @@ interface AssetsPerformanceDashboardProps {
 export const AssetsPerformanceDashboard: React.FC<AssetsPerformanceDashboardProps> = ({ api }) => {
   const [scope, setScope] = useState<PortfolioScope>({ type: 'all', label: 'All Portfolios' });
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  const [benchmarkSymbol, setBenchmarkSymbol] = useState<string>('^GSPC');
   const [correlationTimeframe, setCorrelationTimeframe] = useState<ComparisonTimeframe>('1Y');
   const [activeTab, setActiveTab] = useState<string>('overview');
-  const [inspectedAsset, setInspectedAsset] = useState<AssetPerformanceItem | null>(null);
 
   const { data, isLoading, isFetching, refetch, error } = useAssetsPerformance({
     api,
     scope,
-    benchmarkSymbol,
+    benchmarkSymbol: '^GSPC',
     dateRange,
     correlationTimeframe,
   });
@@ -64,10 +60,6 @@ export const AssetsPerformanceDashboard: React.FC<AssetsPerformanceDashboardProp
         <div className="flex flex-wrap items-center gap-2.5">
           <DateRangeSelector value={dateRange} onChange={setDateRange} hiddenRanges={['1D']} />
           <PortfolioScopeFilter api={api} scope={scope} onScopeChange={setScope} />
-          <BenchmarkSelector
-            selectedSymbol={benchmarkSymbol}
-            onSelectBenchmark={setBenchmarkSymbol}
-          />
           <Button
             variant="outline"
             size="icon"
@@ -116,11 +108,7 @@ export const AssetsPerformanceDashboard: React.FC<AssetsPerformanceDashboardProp
 
             {/* Tab 1: Holdings Table */}
             <TabsContent value="overview" className="space-y-4">
-              <AssetsTable
-                assets={assets}
-                baseCurrency={baseCurrency}
-                onOpenAssetDetail={setInspectedAsset}
-              />
+              <AssetsTable assets={assets} baseCurrency={baseCurrency} />
             </TabsContent>
 
             {/* Tab 2: Correlation Matrix */}
@@ -136,15 +124,6 @@ export const AssetsPerformanceDashboard: React.FC<AssetsPerformanceDashboardProp
           </Tabs>
         </>
       )}
-
-      {/* Asset Deep Dive Modal */}
-      <AssetDetailModal
-        asset={inspectedAsset}
-        isOpen={Boolean(inspectedAsset)}
-        onClose={() => setInspectedAsset(null)}
-        baseCurrency={baseCurrency}
-        benchmarkSymbol={benchmarkSymbol}
-      />
     </div>
   );
 };
