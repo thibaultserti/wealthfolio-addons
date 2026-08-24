@@ -1,6 +1,15 @@
 import React from 'react';
-import { Card, CardContent, formatAmount, formatPercent } from '@wealthfolio/ui';
-import { TrendingUp, TrendingDown, Target, PieChart } from 'lucide-react';
+import {
+  Card,
+  CardContent,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipProvider,
+  formatAmount,
+  formatPercent,
+} from '@wealthfolio/ui';
+import { TrendingUp, TrendingDown, Target, PieChart, Info } from 'lucide-react';
 import type { AssetPerformanceItem } from '../types';
 import { TickerLogo } from './ticker-logo';
 
@@ -92,9 +101,41 @@ export const PerformanceKpis: React.FC<PerformanceKpisProps> = ({
       <Card className="shadow-sm">
         <CardContent className="p-4 flex items-center justify-between">
           <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              Weighted Avg IRR (TRI)
-            </p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Weighted Avg IRR (TRI)
+              </p>
+              <TooltipProvider>
+                <Tooltip delayDuration={150}>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      className="text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors"
+                      aria-label="IRR and TWR explanation"
+                    >
+                      <Info className="w-3.5 h-3.5 opacity-70 hover:opacity-100" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs text-xs p-3 space-y-2 z-50">
+                    <div>
+                      <p className="font-semibold text-primary">IRR (TRI / Money-Weighted)</p>
+                      <p className="text-muted-foreground leading-relaxed mt-0.5">
+                        Taux de Rendement Interne calculé sur vos flux de capitaux réels (achats,
+                        ventes, dividendes). Reflète la rentabilité effective de votre argent
+                        investi.
+                      </p>
+                    </div>
+                    <div className="border-t pt-1.5">
+                      <p className="font-semibold text-foreground">TWR (Time-Weighted Return)</p>
+                      <p className="text-muted-foreground leading-relaxed mt-0.5">
+                        Rendement pondéré dans le temps qui mesure la croissance pure du cours de
+                        vos actifs, sans distorsion liée au timing de vos versements.
+                      </p>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
             <h3
               className={`text-xl font-bold tracking-tight mt-1 ${
                 weightedAverageIrr != null && weightedAverageIrr >= 0

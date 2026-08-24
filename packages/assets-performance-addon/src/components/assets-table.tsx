@@ -6,10 +6,14 @@ import {
   CardTitle,
   Input,
   Badge,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipProvider,
   formatAmount,
   formatPercent,
 } from '@wealthfolio/ui';
-import { Search, ArrowUpDown } from 'lucide-react';
+import { Search, ArrowUpDown, Info } from 'lucide-react';
 import type { AssetPerformanceItem } from '../types';
 import { TickerLogo } from './ticker-logo';
 
@@ -182,24 +186,87 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({ assets, baseCurrency }
                   <ArrowUpDown className="w-3 h-3 opacity-60" />
                 </div>
               </th>
-              <th
-                className="py-2.5 px-3 text-right cursor-pointer hover:text-foreground transition-colors"
-                onClick={() => handleSort('twr')}
-                title="Time-Weighted Return: compound growth of asset price"
-              >
+              <th className="py-2.5 px-3 text-right hover:text-foreground transition-colors">
                 <div className="flex items-center justify-end gap-1">
-                  <span>TWR</span>
-                  <ArrowUpDown className="w-3 h-3 opacity-60" />
+                  <div
+                    className="flex items-center gap-1 cursor-pointer"
+                    onClick={() => handleSort('twr')}
+                  >
+                    <span>TWR</span>
+                    <ArrowUpDown className="w-3 h-3 opacity-60" />
+                  </div>
+                  <TooltipProvider>
+                    <Tooltip delayDuration={150}>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          className="text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors"
+                          aria-label="TWR info"
+                        >
+                          <Info className="w-3 h-3 opacity-70 hover:opacity-100" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs text-xs p-3 space-y-1.5 z-50">
+                        <p className="font-semibold text-foreground">TWR (Time-Weighted Return)</p>
+                        <p className="text-muted-foreground leading-relaxed">
+                          <strong>Rendement pondéré dans le temps</strong> : Mesure la performance
+                          intrinsèque de l'actif (la croissance pure du cours), indépendamment des
+                          montants ou dates de vos versements.
+                        </p>
+                        <p className="text-[11px] text-muted-foreground/90 border-t pt-1">
+                          📐{' '}
+                          <em>
+                            Idéal pour comparer la performance pure de l'actif face à un indice de
+                            référence (Benchmark).
+                          </em>
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               </th>
-              <th
-                className="py-2.5 px-3 text-right cursor-pointer hover:text-foreground transition-colors"
-                onClick={() => handleSort('irr')}
-                title="Money-Weighted Return (Internal Rate of Return / TRI)"
-              >
+              <th className="py-2.5 px-3 text-right hover:text-foreground transition-colors">
                 <div className="flex items-center justify-end gap-1">
-                  <span className="font-semibold text-primary">IRR (TRI)</span>
-                  <ArrowUpDown className="w-3 h-3 opacity-60" />
+                  <div
+                    className="flex items-center gap-1 cursor-pointer"
+                    onClick={() => handleSort('irr')}
+                  >
+                    <span className="font-semibold text-primary">IRR (TRI)</span>
+                    <ArrowUpDown className="w-3 h-3 opacity-60" />
+                  </div>
+                  <TooltipProvider>
+                    <Tooltip delayDuration={150}>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          className="text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors"
+                          aria-label="IRR info"
+                        >
+                          <Info className="w-3 h-3 opacity-70 hover:opacity-100" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs text-xs p-3 space-y-1.5 z-50">
+                        <p className="font-semibold text-primary">
+                          IRR / TRI (Internal Rate of Return)
+                        </p>
+                        <p className="text-muted-foreground leading-relaxed">
+                          <strong>Taux de Rendement Interne (TRI)</strong> : Mesure la rentabilité
+                          effective de <em>votre propre argent</em> (Money-Weighted Return).
+                        </p>
+                        <p className="text-muted-foreground leading-relaxed">
+                          Il prend en compte les dates exactes et les montants de chacun de vos
+                          achats (DCA), ventes et dividendes perçus.
+                        </p>
+                        <p className="text-[11px] text-muted-foreground/90 border-t pt-1">
+                          📐{' '}
+                          <em>
+                            Reflète votre rentabilité financière réelle et l'impact de votre timing
+                            d'investissement.
+                          </em>
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               </th>
             </tr>
