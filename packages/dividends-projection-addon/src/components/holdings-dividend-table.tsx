@@ -297,7 +297,13 @@ export const HoldingsDividendTable: React.FC<HoldingsDividendTableProps> = ({
                     {/* Holding Symbol & Name */}
                     <td className="py-2.5 px-4">
                       <div className="flex items-center gap-2.5">
-                        <TickerLogo size="md" symbol={h.symbol} name={h.name} />
+                        <TickerLogo
+                          size="md"
+                          symbol={h.symbol}
+                          name={h.name}
+                          exchangeMic={h.exchangeMic}
+                          instrumentType={h.instrumentType}
+                        />
                         <div className="min-w-0">
                           <div className="font-semibold text-foreground text-xs truncate max-w-40">
                             {h.name}

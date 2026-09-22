@@ -69,7 +69,7 @@ export const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({
     nameB: string;
   } | null>(null);
 
-  const { symbols, names, matrix, pairs } = correlationData;
+  const { symbols, names, exchanges = {}, instrumentTypes = {}, matrix, pairs } = correlationData;
 
   if (symbols.length < 2) {
     return (
@@ -136,7 +136,12 @@ export const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({
                       title={names[sym] || sym}
                     >
                       <div className="flex flex-col items-center gap-1">
-                        <TickerLogo symbol={sym} size="xs" />
+                        <TickerLogo
+                          symbol={sym}
+                          exchangeMic={exchanges[sym]}
+                          instrumentType={instrumentTypes[sym]}
+                          size="xs"
+                        />
                         <span>{sym}</span>
                       </div>
                     </th>
@@ -151,7 +156,12 @@ export const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({
                       title={names[symA] || symA}
                     >
                       <div className="flex items-center gap-1.5">
-                        <TickerLogo symbol={symA} size="xs" />
+                        <TickerLogo
+                          symbol={symA}
+                          exchangeMic={exchanges[symA]}
+                          instrumentType={instrumentTypes[symA]}
+                          size="xs"
+                        />
                         <span>{symA}</span>
                       </div>
                     </td>
@@ -213,10 +223,20 @@ export const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({
             <div className="mt-3 p-3 bg-muted/30 rounded-lg border border-border/60 flex items-center justify-between text-xs animate-in fade-in-50">
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1.5">
-                  <TickerLogo symbol={hoveredCell.symA} size="xs" />
+                  <TickerLogo
+                    symbol={hoveredCell.symA}
+                    exchangeMic={exchanges[hoveredCell.symA]}
+                    instrumentType={instrumentTypes[hoveredCell.symA]}
+                    size="xs"
+                  />
                   <span className="font-mono font-bold">{hoveredCell.symA}</span>
                   <span className="text-muted-foreground">vs</span>
-                  <TickerLogo symbol={hoveredCell.symB} size="xs" />
+                  <TickerLogo
+                    symbol={hoveredCell.symB}
+                    exchangeMic={exchanges[hoveredCell.symB]}
+                    instrumentType={instrumentTypes[hoveredCell.symB]}
+                    size="xs"
+                  />
                   <span className="font-mono font-bold">{hoveredCell.symB}</span>
                 </div>
                 <span className="text-muted-foreground hidden sm:inline">
@@ -260,10 +280,20 @@ export const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({
                   className="py-2 flex items-center justify-between"
                 >
                   <div className="flex items-center gap-2 font-mono font-medium">
-                    <TickerLogo symbol={pair.assetASymbol} size="xs" />
+                    <TickerLogo
+                      symbol={pair.assetASymbol}
+                      exchangeMic={exchanges[pair.assetASymbol]}
+                      instrumentType={instrumentTypes[pair.assetASymbol]}
+                      size="xs"
+                    />
                     <span>{pair.assetASymbol}</span>
                     <span className="text-muted-foreground">↔</span>
-                    <TickerLogo symbol={pair.assetBSymbol} size="xs" />
+                    <TickerLogo
+                      symbol={pair.assetBSymbol}
+                      exchangeMic={exchanges[pair.assetBSymbol]}
+                      instrumentType={instrumentTypes[pair.assetBSymbol]}
+                      size="xs"
+                    />
                     <span>{pair.assetBSymbol}</span>
                   </div>
                   <Badge
@@ -294,10 +324,20 @@ export const CorrelationMatrix: React.FC<CorrelationMatrixProps> = ({
                   className="py-2 flex items-center justify-between"
                 >
                   <div className="flex items-center gap-2 font-mono font-medium">
-                    <TickerLogo symbol={pair.assetASymbol} size="xs" />
+                    <TickerLogo
+                      symbol={pair.assetASymbol}
+                      exchangeMic={exchanges[pair.assetASymbol]}
+                      instrumentType={instrumentTypes[pair.assetASymbol]}
+                      size="xs"
+                    />
                     <span>{pair.assetASymbol}</span>
                     <span className="text-muted-foreground">↔</span>
-                    <TickerLogo symbol={pair.assetBSymbol} size="xs" />
+                    <TickerLogo
+                      symbol={pair.assetBSymbol}
+                      exchangeMic={exchanges[pair.assetBSymbol]}
+                      instrumentType={instrumentTypes[pair.assetBSymbol]}
+                      size="xs"
+                    />
                     <span>{pair.assetBSymbol}</span>
                   </div>
                   <Badge

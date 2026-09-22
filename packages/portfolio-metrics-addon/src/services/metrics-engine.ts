@@ -436,6 +436,11 @@ export function aggregatePortfolioMetrics({
     const pfcfOnCost = pfcfRatio != null ? pfcfRatio * costRatio : null;
     const evToEbitda = fin.enterpriseToEbitda ?? null;
 
+    const exchangeMic =
+      (h.instrument as { exchangeMic?: string })?.exchangeMic ||
+      profile?.instrumentExchangeMic ||
+      undefined;
+    const instrumentType = h.assetKind || undefined;
     const marketCap = fin.marketCap ? fin.marketCap / 1_000_000 : 0;
 
     stockHoldingMetrics.push({
@@ -444,6 +449,8 @@ export function aggregatePortfolioMetrics({
       symbol: rawSymbol,
       name: h.instrument?.name || profile?.name || rawSymbol,
       currency: h.localCurrency || h.instrument?.currency || baseCurrency,
+      exchangeMic,
+      instrumentType,
       shares,
       price,
       marketValue: mVal,

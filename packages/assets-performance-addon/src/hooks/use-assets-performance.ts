@@ -344,6 +344,8 @@ export function useAssetsPerformance({
       symbol: string;
       name: string;
       currency: string;
+      exchangeMic?: string;
+      instrumentType?: string;
       assetClass?: string;
       quantity: number;
       marketValueBase: number;
@@ -368,6 +370,8 @@ export function useAssetsPerformance({
       const assetId = h.instrument?.id || h.id;
       const name = h.instrument?.name || symbol;
       const currency = h.localCurrency || baseCurrency;
+      const exchangeMic = (h.instrument as { exchangeMic?: string })?.exchangeMic ?? undefined;
+      const instrumentType = h.assetKind ?? undefined;
       const assetClass = (h.instrument as { classifications?: { assetType?: { name?: string } } })
         ?.classifications?.assetType?.name;
 
@@ -397,6 +401,12 @@ export function useAssetsPerformance({
         existing.totalGainBase += totGainBase;
         existing.totalReturnBase += totRetBase;
         existing.returnBasisBase += retBasisBase;
+        if (!existing.exchangeMic && exchangeMic) {
+          existing.exchangeMic = exchangeMic;
+        }
+        if (!existing.instrumentType && instrumentType) {
+          existing.instrumentType = instrumentType;
+        }
         if (openDate && (!existing.openDate || new Date(openDate) < new Date(existing.openDate))) {
           existing.openDate = openDate;
         }
@@ -406,6 +416,8 @@ export function useAssetsPerformance({
           symbol,
           name,
           currency,
+          exchangeMic,
+          instrumentType,
           assetClass,
           quantity: qty,
           marketValueBase: mValBase,
@@ -529,6 +541,8 @@ export function useAssetsPerformance({
         symbol: agg.symbol,
         name: agg.name,
         currency: agg.currency,
+        exchangeMic: agg.exchangeMic,
+        instrumentType: agg.instrumentType,
         assetClass: agg.assetClass,
         quantity: agg.quantity,
         marketPrice: agg.price,
@@ -559,6 +573,8 @@ export function useAssetsPerformance({
         id: a.assetId,
         symbol: a.symbol,
         name: a.name,
+        exchangeMic: a.exchangeMic,
+        instrumentType: a.instrumentType,
         series: a.quotesSeries,
       })),
       correlationTimeframe ?? '1Y',

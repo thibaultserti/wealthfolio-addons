@@ -141,7 +141,13 @@ export const MonthDetailView: React.FC<MonthDetailViewProps> = ({
                   className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg border border-border/50 bg-card/40 hover:bg-accent/30 transition-colors gap-3"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <TickerLogo size="lg" symbol={item.symbol} name={item.name} />
+                    <TickerLogo
+                      size="lg"
+                      symbol={item.symbol}
+                      name={item.name}
+                      exchangeMic={item.exchangeMic}
+                      instrumentType={item.instrumentType}
+                    />
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-sm truncate text-foreground">

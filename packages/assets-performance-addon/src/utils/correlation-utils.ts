@@ -276,7 +276,14 @@ export function computePearsonCorrelation(
  * Generates an N x N correlation matrix across multiple asset return series.
  */
 export function buildCorrelationMatrix(
-  assets: Array<{ id: string; symbol: string; name: string; series: ReturnData[] }>,
+  assets: Array<{
+    id: string;
+    symbol: string;
+    name: string;
+    series: ReturnData[];
+    exchangeMic?: string;
+    instrumentType?: string;
+  }>,
   timeframe: DateRange | ComparisonTimeframe = '1Y',
 ): CorrelationMatrixData {
   // 1. Filter series by timeframe/dateRange
@@ -305,8 +312,12 @@ export function buildCorrelationMatrix(
 
   const symbols = activeAssets.map((a) => a.symbol);
   const names: Record<string, string> = {};
+  const exchanges: Record<string, string> = {};
+  const instrumentTypes: Record<string, string> = {};
   activeAssets.forEach((a) => {
     names[a.symbol] = a.name;
+    if (a.exchangeMic) exchanges[a.symbol] = a.exchangeMic;
+    if (a.instrumentType) instrumentTypes[a.symbol] = a.instrumentType;
   });
 
   const n = activeAssets.length;
@@ -344,6 +355,8 @@ export function buildCorrelationMatrix(
   return {
     symbols,
     names,
+    exchanges,
+    instrumentTypes,
     matrix,
     pairs,
   };

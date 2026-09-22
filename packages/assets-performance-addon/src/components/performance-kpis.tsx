@@ -163,7 +163,14 @@ export const PerformanceKpis: React.FC<PerformanceKpisProps> = ({
               Top Asset Performer
             </p>
             <div className="flex items-center gap-2 mt-1">
-              {bestPerformer && <TickerLogo symbol={bestPerformer.symbol} size="sm" />}
+              {bestPerformer && (
+                <TickerLogo
+                  symbol={bestPerformer.symbol}
+                  exchangeMic={bestPerformer.exchangeMic}
+                  instrumentType={bestPerformer.instrumentType}
+                  size="sm"
+                />
+              )}
               <h3 className="text-lg font-bold tracking-tight truncate max-w-[120px]">
                 {bestPerformer ? bestPerformer.symbol : 'N/A'}
               </h3>
@@ -191,7 +198,14 @@ export const PerformanceKpis: React.FC<PerformanceKpisProps> = ({
               Lowest Asset Performer
             </p>
             <div className="flex items-center gap-2 mt-1">
-              {worstPerformer && <TickerLogo symbol={worstPerformer.symbol} size="sm" />}
+              {worstPerformer && (
+                <TickerLogo
+                  symbol={worstPerformer.symbol}
+                  exchangeMic={worstPerformer.exchangeMic}
+                  instrumentType={worstPerformer.instrumentType}
+                  size="sm"
+                />
+              )}
               <h3 className="text-lg font-bold tracking-tight truncate max-w-[120px]">
                 {worstPerformer ? worstPerformer.symbol : 'N/A'}
               </h3>

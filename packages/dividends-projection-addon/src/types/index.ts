@@ -13,6 +13,8 @@ export interface MonthPayoutItem {
   holdingId: string;
   symbol: string;
   name: string;
+  exchangeMic?: string;
+  instrumentType?: string;
   shares: number;
   dividendPerShare: number;
   amountLocal: number;
@@ -39,6 +41,8 @@ export interface HoldingDividendInfo {
   assetId?: string;
   symbol: string;
   name: string;
+  exchangeMic?: string;
+  instrumentType?: string;
   shares: number;
   currentPrice: number;
   marketValue: number; // in base currency

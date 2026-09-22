@@ -1,27 +1,94 @@
 import React, { useState, useEffect } from 'react';
 
-interface TickerLogoProps {
+export interface TickerLogoProps {
   symbol: string;
   name?: string;
+  exchangeMic?: string | null;
+  instrumentType?: string | null;
   className?: string;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg';
 }
 
-// In-memory object URL cache across components to avoid refetching blobs
+// In-memory cache across components to avoid refetching blobs
 const logoUrlCache = new Map<string, string | null>();
 
-export const TickerLogo: React.FC<TickerLogoProps> = ({ symbol, className = '', size = 'md' }) => {
+export function getLogoCacheKey(
+  symbol: string,
+  exchangeMic?: string | null,
+  instrumentType?: string | null,
+): string {
+  const cleanSymbol = (symbol || '').trim().toUpperCase();
+  const mic = (exchangeMic || '').trim().toUpperCase();
+  const type = (instrumentType || '').trim().toUpperCase();
+  return `${cleanSymbol}@${mic}@${type}`;
+}
+
+export const MIC_TO_SUFFIX: Record<string, string> = {
+  XPAR: 'PA',
+  XAMS: 'AS',
+  XBRU: 'BR',
+  XETR: 'DE',
+  XFRA: 'F',
+  XSTU: 'SG',
+  XMIL: 'MI',
+  XLON: 'L',
+  XMAD: 'MC',
+  XLIS: 'LS',
+  XSWX: 'SW',
+  XWBO: 'VI',
+  XTSE: 'TO',
+  XTSX: 'V',
+  XASX: 'AX',
+  XNZE: 'NZ',
+  XTKS: 'T',
+  XHKG: 'HK',
+  XSES: 'SI',
+  XKRX: 'KS',
+  XTAE: 'TA',
+  XJSE: 'JO',
+  BVMF: 'SA',
+  XMEX: 'MX',
+};
+
+export function clearLogoCache(): void {
+  logoUrlCache.clear();
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result);
+      } else {
+        reject(new Error('Failed to read blob'));
+      }
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+export const TickerLogo: React.FC<TickerLogoProps> = ({
+  symbol,
+  exchangeMic,
+  instrumentType,
+  className = '',
+  size = 'md',
+}) => {
   const cleanSymbol = (symbol || '').trim().toUpperCase();
   const baseSymbol = cleanSymbol ? cleanSymbol.split(/[.:-]/)[0] : '';
+  const cacheKey = getLogoCacheKey(cleanSymbol, exchangeMic, instrumentType);
 
   const sizeClasses = {
+    xs: 'w-5 h-5 text-[8px] rounded-xs',
     sm: 'w-6 h-6 text-[9px] rounded-md',
     md: 'w-8 h-8 text-[11px] rounded-lg',
     lg: 'w-10 h-10 text-xs rounded-xl',
   }[size];
 
   const [objectUrl, setObjectUrl] = useState<string | null>(() => {
-    return logoUrlCache.get(cleanSymbol) ?? logoUrlCache.get(baseSymbol) ?? null;
+    return logoUrlCache.get(cacheKey) ?? null;
   });
   const [hasError, setHasError] = useState(false);
 
@@ -29,73 +96,76 @@ export const TickerLogo: React.FC<TickerLogoProps> = ({ symbol, className = '', 
     if (!cleanSymbol) return;
 
     // Check memory cache
-    const cached =
-      logoUrlCache.get(cleanSymbol) ?? (baseSymbol ? logoUrlCache.get(baseSymbol) : undefined);
+    const cached = logoUrlCache.get(cacheKey);
     if (cached !== undefined) {
       setObjectUrl(cached);
       return;
     }
 
-    function blobToDataUrl(blob: Blob): Promise<string> {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          if (typeof reader.result === 'string') {
-            resolve(reader.result);
-          } else {
-            reject(new Error('Failed to read blob'));
-          }
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-    }
-
     let isMounted = true;
 
     async function loadLogo() {
-      const requestTickerLogo = (globalThis as any).__wealthfolioRequestTickerLogo as
-        ((sym: string) => Promise<Blob | null>) | undefined;
+      const requestTickerLogo = (
+        globalThis as unknown as {
+          __wealthfolioRequestTickerLogo?: (
+            sym: string,
+            mic?: string | null,
+            type?: string | null,
+          ) => Promise<Blob | null>;
+        }
+      ).__wealthfolioRequestTickerLogo;
 
-      const candidates = Array.from(
-        new Set([
-          cleanSymbol,
-          baseSymbol,
-          `${baseSymbol}.PA`,
-          `${cleanSymbol}.PA`,
-          `${baseSymbol}.DE`,
-          `${baseSymbol}.AS`,
-          `${baseSymbol}.MI`,
-          `${baseSymbol}.L`,
-          `${baseSymbol}.US`,
-        ]),
-      ).filter((s): s is string => !!s && s.length > 0);
+      if (typeof requestTickerLogo !== 'function') {
+        if (isMounted) {
+          logoUrlCache.set(cacheKey, null);
+          setObjectUrl(null);
+        }
+        return;
+      }
 
       let dataUrl: string | null = null;
 
-      if (typeof requestTickerLogo === 'function') {
-        for (const candidate of candidates) {
+      // 1. Primary call: In Wealthfolio 3.7+, this queries custom uploaded logos first,
+      // and if none exist, resolves the market-aware / exchange-aware bundled logo.
+      try {
+        const blob = await requestTickerLogo(cleanSymbol, exchangeMic, instrumentType);
+        if (blob && blob.size > 0) {
+          dataUrl = await blobToDataUrl(blob);
+        }
+      } catch {
+        // Continue to fallback
+      }
+
+      // 2. Targeted fallback for older hosts: only try the suffix matching the asset's actual exchange
+      if (!dataUrl && exchangeMic && !cleanSymbol.includes('.')) {
+        const suffix = MIC_TO_SUFFIX[exchangeMic.trim().toUpperCase()];
+        if (suffix) {
           try {
-            const blob = await requestTickerLogo(candidate);
-            if (blob && blob.size > 0) {
-              dataUrl = await blobToDataUrl(blob);
-              break;
+            const suffixedBlob = await requestTickerLogo(`${baseSymbol}.${suffix}`);
+            if (suffixedBlob && suffixedBlob.size > 0) {
+              dataUrl = await blobToDataUrl(suffixedBlob);
             }
           } catch {
-            // Try next candidate
+            // Ignore
           }
         }
       }
 
-      if (isMounted) {
-        if (dataUrl) {
-          logoUrlCache.set(cleanSymbol, dataUrl);
-          if (baseSymbol) logoUrlCache.set(baseSymbol, dataUrl);
-          setObjectUrl(dataUrl);
-        } else {
-          logoUrlCache.set(cleanSymbol, null);
-          setObjectUrl(null);
+      // 3. Fallback to baseSymbol if different from cleanSymbol and still no logo
+      if (!dataUrl && baseSymbol && baseSymbol !== cleanSymbol) {
+        try {
+          const baseBlob = await requestTickerLogo(baseSymbol);
+          if (baseBlob && baseBlob.size > 0) {
+            dataUrl = await blobToDataUrl(baseBlob);
+          }
+        } catch {
+          // Ignore
         }
+      }
+
+      if (isMounted) {
+        logoUrlCache.set(cacheKey, dataUrl);
+        setObjectUrl(dataUrl);
       }
     }
 
@@ -104,7 +174,7 @@ export const TickerLogo: React.FC<TickerLogoProps> = ({ symbol, className = '', 
     return () => {
       isMounted = false;
     };
-  }, [cleanSymbol, baseSymbol]);
+  }, [cleanSymbol, baseSymbol, exchangeMic, instrumentType, cacheKey]);
 
   const displayText = baseSymbol.slice(0, 4) || 'DIV';
 

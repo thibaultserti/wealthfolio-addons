@@ -47,6 +47,8 @@ export interface StockHoldingMetric {
   symbol: string;
   name: string;
   currency: string;
+  exchangeMic?: string;
+  instrumentType?: string;
   shares: number;
   price: number;
   marketValue: number;

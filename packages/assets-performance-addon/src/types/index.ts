@@ -32,6 +32,8 @@ export interface AssetPerformanceItem {
   symbol: string;
   name: string;
   currency: string;
+  exchangeMic?: string;
+  instrumentType?: string;
   assetClass?: string;
   quantity: number;
   marketPrice: number;
@@ -76,6 +78,8 @@ export interface CorrelationCell {
 export interface CorrelationMatrixData {
   symbols: string[];
   names: Record<string, string>;
+  exchanges?: Record<string, string>;
+  instrumentTypes?: Record<string, string>;
   matrix: number[][]; // N x N
   pairs: CorrelationCell[];
 }

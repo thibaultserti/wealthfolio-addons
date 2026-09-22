@@ -288,7 +288,12 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({ assets, baseCurrency }
                   <tr key={asset.symbol} className="hover:bg-muted/30 transition-colors">
                     <td className="py-2.5 px-3">
                       <div className="flex items-center gap-2.5">
-                        <TickerLogo symbol={asset.symbol} size="sm" />
+                        <TickerLogo
+                          symbol={asset.symbol}
+                          exchangeMic={asset.exchangeMic}
+                          instrumentType={asset.instrumentType}
+                          size="sm"
+                        />
                         <div className="flex flex-col min-w-0">
                           <div className="flex items-center gap-1.5">
                             <span className="font-semibold text-foreground font-mono">

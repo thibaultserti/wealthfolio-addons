@@ -450,7 +450,13 @@ export const HoldingsMetricsTable: React.FC<HoldingsMetricsTableProps> = ({
                     {/* Action with Logo */}
                     <td className="py-2.5 px-3 font-sans">
                       <div className="flex items-center gap-2.5">
-                        <TickerLogo symbol={h.symbol} name={h.name} size="sm" />
+                        <TickerLogo
+                          symbol={h.symbol}
+                          name={h.name}
+                          exchangeMic={h.exchangeMic}
+                          instrumentType={h.instrumentType}
+                          size="sm"
+                        />
                         <div className="flex flex-col min-w-0">
                           <span className="font-semibold text-foreground">{h.symbol}</span>
                           <span className="text-[11px] text-muted-foreground truncate max-w-[120px] sm:max-w-[170px]">
