@@ -37,6 +37,67 @@ export interface AssetsPerformanceData {
   totalPortfolioValue: number;
 }
 
+export function isEtfAsset(holding: Holding): boolean {
+  const assetKind = (holding.assetKind || '').toUpperCase();
+  if (assetKind === 'ETF' || assetKind === 'FUND' || assetKind === 'MUTUALFUND') {
+    return true;
+  }
+
+  const classifications = holding.instrument?.classifications as
+    { assetType?: { id?: string; key?: string; parentId?: string; name?: string } } | undefined;
+  const assetTypeId = (
+    classifications?.assetType?.id ||
+    classifications?.assetType?.key ||
+    ''
+  ).toUpperCase();
+  const assetTypeParent = (classifications?.assetType?.parentId || '').toUpperCase();
+  const assetTypeName = (classifications?.assetType?.name || '').toUpperCase();
+
+  if (
+    assetTypeId === 'ETF' ||
+    assetTypeId === 'ETN' ||
+    assetTypeId === 'ETC' ||
+    assetTypeId === 'FUND_MUTUAL' ||
+    assetTypeId === 'FUND_CLOSED_END' ||
+    assetTypeParent === 'ETP' ||
+    assetTypeParent === 'FUND' ||
+    assetTypeName.includes('ETF') ||
+    assetTypeName.includes('FONDS') ||
+    assetTypeName.includes('FUND')
+  ) {
+    return true;
+  }
+
+  const metaProfile = (holding as unknown as { metadata?: { profile?: { quoteType?: string } } })
+    ?.metadata?.profile;
+  const quoteType = (metaProfile?.quoteType || '').toUpperCase();
+  if (quoteType === 'ETF' || quoteType === 'MUTUALFUND' || quoteType === 'INDEX') {
+    return true;
+  }
+
+  const name = (holding.instrument?.name || '').toUpperCase();
+  if (
+    name.includes(' ETF') ||
+    name.startsWith('ETF ') ||
+    name.includes('UCITS') ||
+    name.includes('ISHARES') ||
+    name.includes('VANGUARD') ||
+    name.includes('AMUNDI') ||
+    name.includes('LYXOR') ||
+    name.includes('XTRACKERS') ||
+    name.includes('SPDR') ||
+    name.includes('WISDOMTREE') ||
+    name.includes('INVESCO') ||
+    name.includes('MSCI WORLD') ||
+    name.includes('S&P 500 ETF') ||
+    name.includes('CAC 40 ETF')
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 export function useAssetsPerformance({
   api,
   scope,
@@ -347,6 +408,7 @@ export function useAssetsPerformance({
       exchangeMic?: string;
       instrumentType?: string;
       assetClass?: string;
+      isEtf: boolean;
       quantity: number;
       marketValueBase: number;
       marketValueLocal: number;
@@ -374,6 +436,7 @@ export function useAssetsPerformance({
       const instrumentType = h.assetKind ?? undefined;
       const assetClass = (h.instrument as { classifications?: { assetType?: { name?: string } } })
         ?.classifications?.assetType?.name;
+      const isEtf = isEtfAsset(h);
 
       const existing = aggregatedMap.get(symbol);
       const mValBase = Number(h.marketValue?.base ?? 0);
@@ -407,6 +470,7 @@ export function useAssetsPerformance({
         if (!existing.instrumentType && instrumentType) {
           existing.instrumentType = instrumentType;
         }
+        existing.isEtf = existing.isEtf || isEtf;
         if (openDate && (!existing.openDate || new Date(openDate) < new Date(existing.openDate))) {
           existing.openDate = openDate;
         }
@@ -419,6 +483,7 @@ export function useAssetsPerformance({
           exchangeMic,
           instrumentType,
           assetClass,
+          isEtf,
           quantity: qty,
           marketValueBase: mValBase,
           marketValueLocal: mValLoc,
@@ -544,6 +609,7 @@ export function useAssetsPerformance({
         exchangeMic: agg.exchangeMic,
         instrumentType: agg.instrumentType,
         assetClass: agg.assetClass,
+        isEtf: agg.isEtf,
         quantity: agg.quantity,
         marketPrice: agg.price,
         marketValue: agg.marketValueBase,
@@ -575,6 +641,7 @@ export function useAssetsPerformance({
         name: a.name,
         exchangeMic: a.exchangeMic,
         instrumentType: a.instrumentType,
+        isEtf: a.isEtf,
         series: a.quotesSeries,
       })),
       correlationTimeframe ?? '1Y',

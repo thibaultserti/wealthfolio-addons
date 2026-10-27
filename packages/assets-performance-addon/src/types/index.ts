@@ -35,6 +35,7 @@ export interface AssetPerformanceItem {
   exchangeMic?: string;
   instrumentType?: string;
   assetClass?: string;
+  isEtf?: boolean;
   quantity: number;
   marketPrice: number;
   marketValue: number; // in base currency
@@ -80,6 +81,7 @@ export interface CorrelationMatrixData {
   names: Record<string, string>;
   exchanges?: Record<string, string>;
   instrumentTypes?: Record<string, string>;
+  isEtfMap?: Record<string, boolean>;
   matrix: number[][]; // N x N
   pairs: CorrelationCell[];
 }

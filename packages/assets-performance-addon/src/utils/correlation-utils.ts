@@ -283,6 +283,7 @@ export function buildCorrelationMatrix(
     series: ReturnData[];
     exchangeMic?: string;
     instrumentType?: string;
+    isEtf?: boolean;
   }>,
   timeframe: DateRange | ComparisonTimeframe = '1Y',
 ): CorrelationMatrixData {
@@ -314,10 +315,12 @@ export function buildCorrelationMatrix(
   const names: Record<string, string> = {};
   const exchanges: Record<string, string> = {};
   const instrumentTypes: Record<string, string> = {};
+  const isEtfMap: Record<string, boolean> = {};
   activeAssets.forEach((a) => {
     names[a.symbol] = a.name;
     if (a.exchangeMic) exchanges[a.symbol] = a.exchangeMic;
     if (a.instrumentType) instrumentTypes[a.symbol] = a.instrumentType;
+    if (a.isEtf !== undefined) isEtfMap[a.symbol] = Boolean(a.isEtf);
   });
 
   const n = activeAssets.length;
@@ -357,6 +360,7 @@ export function buildCorrelationMatrix(
     names,
     exchanges,
     instrumentTypes,
+    isEtfMap,
     matrix,
     pairs,
   };

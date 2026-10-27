@@ -35,6 +35,72 @@ type SortField =
 
 type SortOrder = 'asc' | 'desc';
 
+export interface PerformanceGradientStyle {
+  className: string;
+  style: React.CSSProperties;
+}
+
+/**
+ * Computes a smooth color gradient style for performance metrics (IRR/TRI, TWR, Unrealized P&L %).
+ * - Positive returns: emerald gradient from subtle tint (+0.5%) to saturated vibrant (+50% or above).
+ * - Negative returns: rose/red gradient from subtle tint (-0.5%) to saturated vibrant (-35% or below).
+ * - Neutral (0%): soft neutral background.
+ */
+export function getPerformanceGradient(val: number | null | undefined): PerformanceGradientStyle {
+  if (val === null || val === undefined || !Number.isFinite(val)) {
+    return {
+      className: 'text-muted-foreground',
+      style: {},
+    };
+  }
+
+  // Very close to 0 (neutral)
+  if (Math.abs(val) < 0.0001) {
+    return {
+      className: 'text-muted-foreground bg-muted/40 border border-border/40 font-medium',
+      style: {},
+    };
+  }
+
+  if (val > 0) {
+    // Continuous scale from 0 to +50% (capped at 1.0)
+    const factor = Math.min(1, Math.max(0, val / 0.5));
+    // Alpha for background: 0.10 at ~0% -> 0.35 at +50%
+    const bgAlpha = (0.1 + factor * 0.25).toFixed(3);
+    // Alpha for border: 0.18 at ~0% -> 0.50 at +50%
+    const borderAlpha = (0.18 + factor * 0.32).toFixed(3);
+
+    return {
+      className:
+        factor > 0.45
+          ? 'text-emerald-700 dark:text-emerald-300 font-bold'
+          : 'text-emerald-600 dark:text-emerald-400 font-semibold',
+      style: {
+        backgroundColor: `rgba(16, 185, 129, ${bgAlpha})`,
+        borderColor: `rgba(16, 185, 129, ${borderAlpha})`,
+      },
+    };
+  }
+
+  // Negative return: scale from 0 to -35% (capped at 1.0)
+  const factor = Math.min(1, Math.max(0, Math.abs(val) / 0.35));
+  // Alpha for background: 0.10 at ~0% -> 0.35 at -35%
+  const bgAlpha = (0.1 + factor * 0.25).toFixed(3);
+  // Alpha for border: 0.18 at ~0% -> 0.50 at -35%
+  const borderAlpha = (0.18 + factor * 0.32).toFixed(3);
+
+  return {
+    className:
+      factor > 0.45
+        ? 'text-rose-700 dark:text-rose-300 font-bold'
+        : 'text-rose-600 dark:text-rose-400 font-semibold',
+    style: {
+      backgroundColor: `rgba(239, 68, 68, ${bgAlpha})`,
+      borderColor: `rgba(239, 68, 68, ${borderAlpha})`,
+    },
+  };
+}
+
 export const AssetsTable: React.FC<AssetsTableProps> = ({ assets, baseCurrency }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('marketValue');
@@ -283,6 +349,9 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({ assets, baseCurrency }
                 const twr = asset.perf.displayTwr;
                 const irr = asset.perf.displayIrr;
                 const isPositivePnl = asset.unrealizedPnl >= 0;
+                const pnlGradient = getPerformanceGradient(asset.unrealizedPnlPercent);
+                const twrGradient = getPerformanceGradient(twr);
+                const irrGradient = getPerformanceGradient(irr);
 
                 return (
                   <tr key={asset.symbol} className="hover:bg-muted/30 transition-colors">
@@ -320,36 +389,38 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({ assets, baseCurrency }
                     <td className="py-2.5 px-3 text-right text-muted-foreground">
                       {formatAmount(asset.costBasis, baseCurrency)}
                     </td>
-                    <td
-                      className={`py-2.5 px-3 text-right font-medium ${
-                        isPositivePnl
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : 'text-rose-600 dark:text-rose-400'
-                      }`}
-                    >
+                    <td className="py-2.5 px-3 text-right">
                       <div className="flex flex-col items-end">
-                        <span>
+                        <span
+                          className={`font-medium ${
+                            isPositivePnl
+                              ? 'text-emerald-600 dark:text-emerald-400'
+                              : 'text-rose-600 dark:text-rose-400'
+                          }`}
+                        >
                           {isPositivePnl ? '+' : ''}
                           {formatAmount(asset.unrealizedPnl, baseCurrency)}
                         </span>
                         {asset.unrealizedPnlPercent != null && (
-                          <span className="text-[10px] opacity-80">
+                          <span
+                            className={`inline-flex items-center justify-end px-1.5 py-0.5 rounded text-[10px] border shadow-2xs mt-0.5 ${pnlGradient.className}`}
+                            style={pnlGradient.style}
+                          >
                             {formatPercent(asset.unrealizedPnlPercent)}
                           </span>
                         )}
                       </div>
                     </td>
-                    <td
-                      className={`py-2.5 px-3 text-right font-medium ${
-                        twr != null && twr >= 0
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : 'text-rose-600 dark:text-rose-400'
-                      }`}
-                    >
+                    <td className="py-2.5 px-3 text-right">
                       {twr != null ? (
                         <div className="flex flex-col items-end">
-                          <span>{formatPercent(twr)}</span>
-                          <span className="text-[9px] text-muted-foreground">
+                          <span
+                            className={`inline-flex items-center justify-end px-1.5 py-0.5 rounded text-xs border shadow-2xs ${twrGradient.className}`}
+                            style={twrGradient.style}
+                          >
+                            {formatPercent(twr)}
+                          </span>
+                          <span className="text-[9px] text-muted-foreground mt-0.5">
                             {asset.perf.isAnnualized ? 'ann.' : 'tot.'}
                           </span>
                         </div>
@@ -357,17 +428,16 @@ export const AssetsTable: React.FC<AssetsTableProps> = ({ assets, baseCurrency }
                         <span className="text-muted-foreground text-xs">N/A</span>
                       )}
                     </td>
-                    <td
-                      className={`py-2.5 px-3 text-right font-semibold ${
-                        irr != null && irr >= 0
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : 'text-rose-600 dark:text-rose-400'
-                      }`}
-                    >
+                    <td className="py-2.5 px-3 text-right">
                       {irr != null ? (
                         <div className="flex flex-col items-end">
-                          <span>{formatPercent(irr)}</span>
-                          <span className="text-[9px] text-muted-foreground">
+                          <span
+                            className={`inline-flex items-center justify-end px-1.5 py-0.5 rounded text-xs border shadow-2xs ${irrGradient.className}`}
+                            style={irrGradient.style}
+                          >
+                            {formatPercent(irr)}
+                          </span>
+                          <span className="text-[9px] text-muted-foreground mt-0.5">
                             {asset.perf.isAnnualized ? 'ann.' : 'tot.'}
                           </span>
                         </div>

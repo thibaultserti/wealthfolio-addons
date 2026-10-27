@@ -79,4 +79,21 @@ describe('correlation-utils', () => {
     expect(matrixData.matrix[0][1]).toBeCloseTo(1.0, 2);
     expect(matrixData.matrix[1][0]).toBeCloseTo(1.0, 2);
   });
+
+  it('populates isEtfMap when isEtf flag is provided', () => {
+    const asset1: ReturnData[] = [{ date: '2024-01-01', value: 100 }];
+    const asset2: ReturnData[] = [{ date: '2024-01-01', value: 50 }];
+
+    const matrixData = buildCorrelationMatrix(
+      [
+        { id: '1', symbol: 'AAPL', name: 'Apple', series: asset1, isEtf: false },
+        { id: '2', symbol: 'SPY', name: 'SPDR S&P 500 ETF', series: asset2, isEtf: true },
+      ],
+      'ALL',
+    );
+
+    expect(matrixData.isEtfMap).toBeDefined();
+    expect(matrixData.isEtfMap?.['AAPL']).toBe(false);
+    expect(matrixData.isEtfMap?.['SPY']).toBe(true);
+  });
 });
