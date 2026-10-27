@@ -6,6 +6,7 @@ import {
   Button,
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -81,33 +82,35 @@ export const PortfolioScopeFilter: React.FC<PortfolioScopeFilterProps> = ({
         {groupPortfolios.length > 0 && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider px-2 py-1">
-              Portfolios
-            </DropdownMenuLabel>
-            {groupPortfolios.map((groupName) => {
-              const count = activeAccounts.filter((a) => a.group === groupName).length;
-              const isSelected =
-                (scope.type === 'group' || scope.type === 'portfolio') && scope.id === groupName;
-              return (
-                <DropdownMenuItem
-                  key={`group-${groupName}`}
-                  onClick={() =>
-                    onScopeChange({
-                      type: 'group',
-                      id: groupName,
-                      label: groupName,
-                    })
-                  }
-                  className={`flex items-center gap-2 cursor-pointer ${
-                    isSelected ? 'bg-accent font-semibold' : ''
-                  }`}
-                >
-                  <Folder className="w-4 h-4 text-amber-500" />
-                  <span className="truncate">{groupName}</span>
-                  <span className="ml-auto text-xs text-muted-foreground">({count})</span>
-                </DropdownMenuItem>
-              );
-            })}
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider px-2 py-1">
+                Portfolios
+              </DropdownMenuLabel>
+              {groupPortfolios.map((groupName) => {
+                const count = activeAccounts.filter((a) => a.group === groupName).length;
+                const isSelected =
+                  (scope.type === 'group' || scope.type === 'portfolio') && scope.id === groupName;
+                return (
+                  <DropdownMenuItem
+                    key={`group-${groupName}`}
+                    onClick={() =>
+                      onScopeChange({
+                        type: 'group',
+                        id: groupName,
+                        label: groupName,
+                      })
+                    }
+                    className={`flex items-center gap-2 cursor-pointer ${
+                      isSelected ? 'bg-accent font-semibold' : ''
+                    }`}
+                  >
+                    <Folder className="w-4 h-4 text-amber-500" />
+                    <span className="truncate">{groupName}</span>
+                    <span className="ml-auto text-xs text-muted-foreground">({count})</span>
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuGroup>
           </>
         )}
 
@@ -115,42 +118,44 @@ export const PortfolioScopeFilter: React.FC<PortfolioScopeFilterProps> = ({
         {activeAccounts.length > 0 && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider px-2 py-1">
-              Individual Accounts
-            </DropdownMenuLabel>
-            {activeAccounts.map((account) => {
-              const isSelected = scope.type === 'account' && scope.id === account.id;
-              return (
-                <DropdownMenuItem
-                  key={`account-${account.id}`}
-                  onClick={() =>
-                    onScopeChange({
-                      type: 'account',
-                      id: account.id,
-                      label: account.name,
-                    })
-                  }
-                  className={`flex items-center gap-2 cursor-pointer ${
-                    isSelected ? 'bg-accent font-semibold' : ''
-                  }`}
-                >
-                  <Wallet className="w-4 h-4 text-blue-500" />
-                  <div className="flex flex-col truncate min-w-0">
-                    <span className="truncate">{account.name}</span>
-                    {account.group && (
-                      <span className="text-[10px] text-muted-foreground truncate">
-                        {account.group}
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider px-2 py-1">
+                Individual Accounts
+              </DropdownMenuLabel>
+              {activeAccounts.map((account) => {
+                const isSelected = scope.type === 'account' && scope.id === account.id;
+                return (
+                  <DropdownMenuItem
+                    key={`account-${account.id}`}
+                    onClick={() =>
+                      onScopeChange({
+                        type: 'account',
+                        id: account.id,
+                        label: account.name,
+                      })
+                    }
+                    className={`flex items-center gap-2 cursor-pointer ${
+                      isSelected ? 'bg-accent font-semibold' : ''
+                    }`}
+                  >
+                    <Wallet className="w-4 h-4 text-blue-500" />
+                    <div className="flex flex-col truncate min-w-0">
+                      <span className="truncate">{account.name}</span>
+                      {account.group && (
+                        <span className="text-[10px] text-muted-foreground truncate">
+                          {account.group}
+                        </span>
+                      )}
+                    </div>
+                    {account.currency && (
+                      <span className="ml-auto text-[10px] text-muted-foreground uppercase bg-muted/60 px-1.5 py-0.5 rounded">
+                        {account.currency}
                       </span>
                     )}
-                  </div>
-                  {account.currency && (
-                    <span className="ml-auto text-[10px] text-muted-foreground uppercase bg-muted/60 px-1.5 py-0.5 rounded">
-                      {account.currency}
-                    </span>
-                  )}
-                </DropdownMenuItem>
-              );
-            })}
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuGroup>
           </>
         )}
       </DropdownMenuContent>

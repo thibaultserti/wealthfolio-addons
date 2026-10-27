@@ -5,6 +5,7 @@ import {
   Button,
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -98,21 +99,23 @@ export const BenchmarkSelector: React.FC<BenchmarkSelectorProps> = ({
           {/* Search Results */}
           {searchResults.length > 0 && (
             <div className="mb-2">
-              <DropdownMenuLabel className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                Search Results
-              </DropdownMenuLabel>
-              {searchResults.map((res) => (
-                <DropdownMenuItem
-                  key={res.symbol}
-                  onClick={() => handleSelect(res.symbol)}
-                  className="flex items-center justify-between text-xs py-1"
-                >
-                  <span className="font-semibold">{res.symbol}</span>
-                  <span className="text-[11px] text-muted-foreground truncate max-w-[120px]">
-                    {res.name}
-                  </span>
-                </DropdownMenuItem>
-              ))}
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                  Search Results
+                </DropdownMenuLabel>
+                {searchResults.map((res) => (
+                  <DropdownMenuItem
+                    key={res.symbol}
+                    onClick={() => handleSelect(res.symbol)}
+                    className="flex items-center justify-between text-xs py-1"
+                  >
+                    <span className="font-semibold">{res.symbol}</span>
+                    <span className="text-[11px] text-muted-foreground truncate max-w-[120px]">
+                      {res.name}
+                    </span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
               <DropdownMenuSeparator />
             </div>
           )}
@@ -125,23 +128,25 @@ export const BenchmarkSelector: React.FC<BenchmarkSelectorProps> = ({
           </DropdownMenuItem>
 
           <DropdownMenuSeparator />
-          <DropdownMenuLabel className="text-[10px] text-muted-foreground uppercase tracking-wider">
-            Popular Presets
-          </DropdownMenuLabel>
+          <DropdownMenuGroup>
+            <DropdownMenuLabel className="text-[10px] text-muted-foreground uppercase tracking-wider">
+              Popular Presets
+            </DropdownMenuLabel>
 
-          {PRESET_BENCHMARKS.map((preset) => (
-            <DropdownMenuItem
-              key={preset.id}
-              onClick={() => handleSelect(preset.symbol)}
-              className="flex items-center justify-between text-xs py-1.5"
-            >
-              <div className="flex items-center gap-2 truncate">
-                <Globe className="w-3.5 h-3.5 text-primary shrink-0" />
-                <span className="font-semibold">{preset.symbol}</span>
-                <span className="text-[11px] text-muted-foreground truncate">{preset.name}</span>
-              </div>
-            </DropdownMenuItem>
-          ))}
+            {PRESET_BENCHMARKS.map((preset) => (
+              <DropdownMenuItem
+                key={preset.id}
+                onClick={() => handleSelect(preset.symbol)}
+                className="flex items-center justify-between text-xs py-1.5"
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <Globe className="w-3.5 h-3.5 text-primary shrink-0" />
+                  <span className="font-semibold">{preset.symbol}</span>
+                  <span className="text-[11px] text-muted-foreground truncate">{preset.name}</span>
+                </div>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
 

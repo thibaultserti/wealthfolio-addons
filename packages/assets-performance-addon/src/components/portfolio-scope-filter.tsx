@@ -6,6 +6,7 @@ import {
   Button,
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -65,57 +66,63 @@ export const PortfolioScopeFilter: React.FC<PortfolioScopeFilterProps> = ({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-56">
-        <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">
-          Filter Scope
-        </DropdownMenuLabel>
-        <DropdownMenuItem
-          onClick={() => onScopeChange({ type: 'all', label: 'All Portfolios' })}
-          className="flex items-center gap-2 cursor-pointer"
-        >
-          <Layers className="w-4 h-4 text-primary" />
-          <span className="font-medium">All Portfolios</span>
-        </DropdownMenuItem>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">
+            Filter Scope
+          </DropdownMenuLabel>
+          <DropdownMenuItem
+            onClick={() => onScopeChange({ type: 'all', label: 'All Portfolios' })}
+            className="flex items-center gap-2 cursor-pointer"
+          >
+            <Layers className="w-4 h-4 text-primary" />
+            <span className="font-medium">All Portfolios</span>
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
 
         {groupPortfolios.length > 0 && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">
-              Portfolios & Groups
-            </DropdownMenuLabel>
-            {groupPortfolios.map((group) => (
-              <DropdownMenuItem
-                key={group}
-                onClick={() => onScopeChange({ type: 'group', id: group, label: group })}
-                className="flex items-center gap-2 cursor-pointer"
-              >
-                <Folder className="w-4 h-4 text-amber-500" />
-                <span>{group}</span>
-              </DropdownMenuItem>
-            ))}
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">
+                Portfolios & Groups
+              </DropdownMenuLabel>
+              {groupPortfolios.map((group) => (
+                <DropdownMenuItem
+                  key={group}
+                  onClick={() => onScopeChange({ type: 'group', id: group, label: group })}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <Folder className="w-4 h-4 text-amber-500" />
+                  <span>{group}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
           </>
         )}
 
         {activeAccounts.length > 0 && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">
-              Individual Accounts
-            </DropdownMenuLabel>
-            {activeAccounts.map((acc) => (
-              <DropdownMenuItem
-                key={acc.id}
-                onClick={() => onScopeChange({ type: 'account', id: acc.id, label: acc.name })}
-                className="flex items-center gap-2 cursor-pointer"
-              >
-                <Wallet className="w-4 h-4 text-emerald-500" />
-                <span className="truncate">{acc.name}</span>
-                {acc.currency && (
-                  <span className="ml-auto text-xs text-muted-foreground font-mono">
-                    {acc.currency}
-                  </span>
-                )}
-              </DropdownMenuItem>
-            ))}
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">
+                Individual Accounts
+              </DropdownMenuLabel>
+              {activeAccounts.map((acc) => (
+                <DropdownMenuItem
+                  key={acc.id}
+                  onClick={() => onScopeChange({ type: 'account', id: acc.id, label: acc.name })}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <Wallet className="w-4 h-4 text-emerald-500" />
+                  <span className="truncate">{acc.name}</span>
+                  {acc.currency && (
+                    <span className="ml-auto text-xs text-muted-foreground font-mono">
+                      {acc.currency}
+                    </span>
+                  )}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
           </>
         )}
       </DropdownMenuContent>
